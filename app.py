@@ -50,7 +50,6 @@ def download_video_as_mp3(url, output_dir):
         # This is optional and will be skipped in Docker containers
         try:
             # Only try cookies if we're not in a container environment
-            import os
             if not os.path.exists('/.dockerenv'):  # Not in Docker
                 for browser in ['chrome', 'firefox', 'safari', 'edge']:
                     try:
