@@ -47,42 +47,90 @@ def download_video_as_mp3(url, output_dir):
         }
         
         # Try to add cookies if available, but don't fail if not found
+        # This is optional and will be skipped in Docker containers
         try:
-            for browser in ['chrome', 'firefox', 'safari', 'edge']:
-                try:
-                    ydl_opts['cookiesfrombrowser'] = (browser,)
-                    with yt_dlp.YoutubeDL({'quiet': True, 'cookiesfrombrowser': (browser,)}) as test_ydl:
-                        pass
-                    break
-                except:
-                    continue
+            # Only try cookies if we're not in a container environment
+            import os
+            if not os.path.exists('/.dockerenv'):  # Not in Docker
+                for browser in ['chrome', 'firefox', 'safari', 'edge']:
+                    try:
+                        # Test if browser cookies are accessible
+                        test_opts = {'quiet': True, 'cookiesfrombrowser': (browser,)}
+                        with yt_dlp.YoutubeDL(test_opts) as test_ydl:
+                            # If this doesn't raise an exception, cookies are accessible
+                            ydl_opts['cookiesfrombrowser'] = (browser,)
+                            break
+                    except:
+                        # Browser cookies not available, try next browser
+                        continue
         except:
-            ydl_opts.pop('cookiesfrombrowser', None)
+            # If any error occurs, just continue without cookies
+            pass
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Get video info
-            info = ydl.extract_info(url, download=False)
-            title = info.get('title', 'Unknown')
-            duration = info.get('duration', 0)
-            
-            # Download and convert
-            ydl.download([url])
-            
-            # Find the downloaded MP3 file
-            safe_title = sanitize_filename(title)
-            mp3_file = None
-            for file in os.listdir(output_dir):
-                if file.endswith('.mp3') and safe_title[:20] in file:
-                    mp3_file = os.path.join(output_dir, file)
-                    break
-            
-            return {
-                'success': True,
-                'title': title,
-                'duration': duration,
-                'file_path': mp3_file,
-                'filename': os.path.basename(mp3_file) if mp3_file else None
+        # Try downloading with enhanced options
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # Get video info
+                info = ydl.extract_info(url, download=False)
+                title = info.get('title', 'Unknown')
+                duration = info.get('duration', 0)
+                
+                # Download and convert
+                ydl.download([url])
+                
+                # Find the downloaded MP3 file
+                safe_title = sanitize_filename(title)
+                mp3_file = None
+                for file in os.listdir(output_dir):
+                    if file.endswith('.mp3') and safe_title[:20] in file:
+                        mp3_file = os.path.join(output_dir, file)
+                        break
+                
+                return {
+                    'success': True,
+                    'title': title,
+                    'duration': duration,
+                    'file_path': mp3_file,
+                    'filename': os.path.basename(mp3_file) if mp3_file else None
+                }
+        except Exception as first_error:
+            # If first attempt fails, try with basic options (no cookies, no special headers)
+            basic_opts = {
+                'format': 'bestaudio/best',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '320',
+                }],
+                'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
+                'noplaylist': True,
+                'quiet': True,
             }
+            
+            with yt_dlp.YoutubeDL(basic_opts) as ydl:
+                # Get video info
+                info = ydl.extract_info(url, download=False)
+                title = info.get('title', 'Unknown')
+                duration = info.get('duration', 0)
+                
+                # Download and convert
+                ydl.download([url])
+                
+                # Find the downloaded MP3 file
+                safe_title = sanitize_filename(title)
+                mp3_file = None
+                for file in os.listdir(output_dir):
+                    if file.endswith('.mp3') and safe_title[:20] in file:
+                        mp3_file = os.path.join(output_dir, file)
+                        break
+                
+                return {
+                    'success': True,
+                    'title': title,
+                    'duration': duration,
+                    'file_path': mp3_file,
+                    'filename': os.path.basename(mp3_file) if mp3_file else None
+                }
             
     except yt_dlp.utils.DownloadError as e:
         error_msg = str(e)
@@ -96,10 +144,15 @@ def download_video_as_mp3(url, output_dir):
                 'success': False,
                 'error': "❌ Video Not Available: This video may be private, age-restricted, or geo-blocked."
             }
+        elif "cookies" in error_msg.lower():
+            return {
+                'success': False,
+                'error': "⚠️ Cookie Issue: Unable to access browser cookies. This is normal in containers.\nTrying alternative methods..."
+            }
         else:
             return {
                 'success': False,
-                'error': f"❌ Download Failed: {str(e)}"
+                'error': f"❌ Download Failed: Try a different video or check if the URL is valid."
             }
     except Exception as e:
         return {
