@@ -80,36 +80,3 @@ python main.py
 docker-compose up -d
 ```
 
-### Cloud Deployment
-
-#### Google Cloud Run (Recommended)
-```bash
-# Edit deploy.sh with your project ID
-./deploy.sh
-```
-
-#### Streamlit Cloud (Easiest)
-```bash
-./deploy_streamlit.sh
-# Then follow the instructions to push to GitHub
-```
-
-#### Other Options
-- **Railway**: Simple Python app deployment
-- **Heroku**: With ffmpeg buildpack
-- **DigitalOcean**: App Platform
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
-
-## 📁 File Structure
-
-```
-youtube-to-mp3/
-├── app.py              # Streamlit web interface
-├── main.py             # Core download functions
-├── requirements.txt    # Python dependencies
-├── run_app.sh         # macOS/Linux launcher
-├── run_app.bat        # Windows launcher
-├── downloads/         # Output folder (auto-created)
-└── README.md          # This file
-```

@@ -32,8 +32,14 @@ def format_view_count(count):
         return str(count)
 
 def main():
-    st.title("🎵 Video to MP3 Converter")
-    st.markdown("Convert YouTube videos and MP4 files to high-quality MP3 files")
+    # Header with branding
+    st.markdown("""
+    <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 20px;">
+        <h1 style="color: white; margin: 0; font-size: 2.5em; font-weight: bold;">🎵 Video to MP3 Converter</h1>
+        <p style="color: white; margin: 10px 0 0 0; font-size: 1.2em;">Convert YouTube videos and MP4 files to high-quality MP3 files</p>
+        <p style="color: #f0f0f0; margin: 10px 0 0 0; font-size: 0.9em; font-style: italic;">Built By Nepal Media Group</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Create two columns
     col1, col2 = st.columns([2, 1])
