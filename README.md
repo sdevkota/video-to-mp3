@@ -1,95 +1,112 @@
-# 🎵 Video to MP3 Converter
+# NMG Video to MP3 Converter
 
-A simple, standalone video to MP3 converter with both CLI and web interface. Supports YouTube videos and direct MP4 file URLs.
+A simple Streamlit web application to convert YouTube videos and MP4 files to MP3 format.
 
-## 🚀 Quick Start (Web UI)
+## Features
 
-### macOS/Linux
-```bash
-./run_app.sh
-```
+- Convert YouTube videos to MP3
+- Convert MP4 files to MP3
+- Clean web interface
+- Real-time conversion progress
+- Direct download from browser
+- High quality MP3 output (320kbps)
 
-### Windows
-```cmd
-run_app.bat
-```
+## Installation
 
-Then open http://localhost:8501 in your browser.
-
-## 📋 Manual Setup
-
-### 1. Create Virtual Environment
-```bash
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-### 2. Install Dependencies
+1. Install Python 3.7 or higher
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Install FFmpeg
-**macOS:**
+## Quick Start
+
+### 🐳 Docker (Recommended)
+
+**Option 1: Use Docker run script**
 ```bash
-brew install ffmpeg
+# On Mac/Linux
+./docker-run.sh
+
+# On Windows
+docker-run.bat
 ```
 
-**Ubuntu/Debian:**
+**Option 2: Manual Docker**
 ```bash
-sudo apt install ffmpeg
+# Build and run with docker-compose
+docker-compose up --build -d
+
+# Or with Docker Compose plugin
+docker compose up --build -d
 ```
 
-**Windows:**
-```cmd
-winget install ffmpeg
+### 🐍 Python Local Install
+
+**Option 3: Use the Python run script**
+```bash
+# On Mac/Linux
+./run.sh
+
+# On Windows
+run.bat
 ```
 
-## 💻 Usage
-
-### Web Interface (Recommended)
+**Option 4: Manual Python setup**
 ```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the app
 streamlit run app.py
 ```
 
-### Command Line
+## Usage
+
+1. Run the application using one of the methods above
+2. Open your browser to the provided URL (usually http://localhost:8501)
+3. Enter a YouTube URL or MP4 file URL
+4. Click "Convert to MP3"
+5. Wait for conversion to complete
+6. Download your MP3 file
+
+## Requirements
+
+### Docker (Recommended)
+- Docker Desktop
+- Docker Compose
+
+### Python Local Install
+- Python 3.7 or higher
+- ffmpeg (for audio conversion)
+  - **Mac**: `brew install ffmpeg`
+  - **Ubuntu/Debian**: `sudo apt install ffmpeg`
+  - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+
+## Docker Commands
+
 ```bash
-python main.py
-```
-
-## ✨ Features
-
-- 🎵 High quality MP3 conversion (320kbps)
-- 🖥️ Modern web interface
-- 📱 Mobile-friendly design
-- 🚀 Fast processing
-- 🔒 Privacy-focused (runs locally)
-- 📥 Direct browser downloads
-- 👀 Video preview before download
-- 🧹 No server storage (temporary processing only)
-- 📹 YouTube & MP4 URL support
-
-## 🏗️ Deployment
-
-### Local Development
-```bash
-# Option 1: Direct run
-./run_app.sh
-
-# Option 2: Docker Compose
+# Start the application
 docker-compose up -d
-```
 
-### Production
-```bash
+# View logs
+docker-compose logs -f
+
+# Stop the application
 docker-compose down
-sudo docker inspect --format '{{.State.Pid}}' video-to-mp3_web_1
-Example output: 12345
-sudo kill -9 12345
 
-or 
-sudo kill -9 $(sudo docker inspect --format '{{.State.Pid}}' video-to-mp3_web_1)
+# Restart the application
+docker-compose restart
 
-
+# Rebuild and start
+docker-compose up --build -d
 ```
 
+## Supported Formats
+
+- **Input**: YouTube videos, MP4 files
+- **Output**: MP3 (320kbps)
+
+## Built By
+
+Nepal Media Group

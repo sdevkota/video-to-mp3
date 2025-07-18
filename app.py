@@ -1,27 +1,63 @@
 import streamlit as st
+import yt_dlp
 import os
 import tempfile
-import shutil
-from main import download_video_as_mp3, get_video_info
 import time
+from pathlib import Path
 
-# Configure Streamlit page
-st.set_page_config(
-    page_title="NMG Video to Mp3",
-    page_icon="🎵",
-    layout="wide"
-)
+def sanitize_filename(filename):
+    """Remove invalid characters from filename"""
+    import re
+    filename = re.sub(r'[<>:"/\\|?*]', '', filename)
+    filename = re.sub(r'\s+', ' ', filename)
+    return filename.strip()
 
-# Add SEO meta tags
-st.markdown("""
-<head>
-    <meta property="og:title" content="NMG Video to Mp3">
-    <meta property="og:description" content="Convert YouTube videos and MP4 files to high-quality MP3 files - Built by Nepal Media Group">
-    <meta property="og:type" content="website">
-    <meta name="description" content="Convert YouTube videos and MP4 files to high-quality MP3 files - Built by Nepal Media Group">
-    <meta name="keywords" content="video to mp3, youtube converter, mp3 converter, nepal media group, nmg">
-</head>
-""", unsafe_allow_html=True)
+def download_video_as_mp3(url, output_dir):
+    """Download video as MP3"""
+    try:
+        # Configure yt-dlp options
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
+            'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
+            'noplaylist': True,
+            'quiet': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Get video info
+            info = ydl.extract_info(url, download=False)
+            title = info.get('title', 'Unknown')
+            duration = info.get('duration', 0)
+            
+            # Download and convert
+            ydl.download([url])
+            
+            # Find the downloaded MP3 file
+            safe_title = sanitize_filename(title)
+            mp3_file = None
+            for file in os.listdir(output_dir):
+                if file.endswith('.mp3') and safe_title[:20] in file:
+                    mp3_file = os.path.join(output_dir, file)
+                    break
+            
+            return {
+                'success': True,
+                'title': title,
+                'duration': duration,
+                'file_path': mp3_file,
+                'filename': os.path.basename(mp3_file) if mp3_file else None
+            }
+            
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
 
 def format_duration(seconds):
     """Format duration from seconds to MM:SS"""
@@ -31,153 +67,108 @@ def format_duration(seconds):
     seconds = seconds % 60
     return f"{minutes:02d}:{seconds:02d}"
 
-def format_view_count(count):
-    """Format view count with K, M notation"""
-    if not count:
-        return "Unknown"
-    if count >= 1000000:
-        return f"{count/1000000:.1f}M"
-    elif count >= 1000:
-        return f"{count/1000:.1f}K"
-    else:
-        return str(count)
-
 def main():
+    # Page config
+    st.set_page_config(
+        page_title="NMG Video to MP3",
+        page_icon="🎵",
+        layout="wide"
+    )
+    
     # Header with branding
     st.markdown("""
     <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 20px;">
         <h1 style="color: white; margin: 0; font-size: 2.5em; font-weight: bold;">🎵 Video to MP3 Converter</h1>
-        <p style="color: white; margin: 10px 0 0 0; font-size: 1.2em;">Convert YouTube videos and MP4 files to high-quality MP3 files</p>
+        <p style="color: white; margin: 10px 0 0 0; font-size: 1.2em;">Convert YouTube videos and MP4 files to high-quality MP3</p>
         <p style="color: #f0f0f0; margin: 10px 0 0 0; font-size: 0.9em; font-style: italic;">Built By Nepal Media Group</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Create two columns
+    # Create columns
     col1, col2 = st.columns([2, 1])
     
     with col1:
         # URL input
         url = st.text_input(
-            "Enter Video URL:",
+            "🔗 Enter Video URL:",
             placeholder="https://www.youtube.com/watch?v=... or https://example.com/video.mp4",
             help="Paste a YouTube video URL or direct MP4 file URL here"
         )
         
-        # Preview button
-        if url and st.button("📋 Preview Video Info", use_container_width=True):
-            with st.spinner("Fetching video information..."):
-                info = get_video_info(url)
-                
-                if info['success']:
-                    st.success("Video found!")
-                    
-                    # Display video info
-                    col_info1, col_info2 = st.columns(2)
-                    
-                    with col_info1:
-                        st.write("**Title:**", info['title'])
-                        st.write("**Duration:**", format_duration(info['duration']))
-                    
-                    with col_info2:
-                        st.write("**Uploader:**", info['uploader'])
-                        st.write("**Views:**", format_view_count(info['view_count']))
-                    
-                    # Show thumbnail if available
-                    if info['thumbnail']:
-                        st.image(info['thumbnail'], caption="Video Thumbnail", width=300)
-                else:
-                    st.error(f"Failed to fetch video info: {info['error']}")
-        
-        # Download section
-        st.markdown("---")
-        
-        # Download button
+        # Convert button
         if url and st.button("🎵 Convert & Download MP3", type="primary", use_container_width=True):
             if not url.strip():
                 st.error("Please enter a valid video URL")
                 return
             
-            # Create progress placeholder
+            # Create progress placeholders
             progress_placeholder = st.empty()
             status_placeholder = st.empty()
             
             with status_placeholder:
-                st.info("Starting conversion...")
+                st.info("🔄 Starting conversion...")
             
             with progress_placeholder:
                 progress_bar = st.progress(0)
-                
+            
             try:
                 # Update progress
                 progress_bar.progress(25)
-                status_placeholder.info("Extracting video information...")
+                status_placeholder.info("📋 Extracting video information...")
                 time.sleep(0.5)
                 
                 progress_bar.progress(50)
-                status_placeholder.info("Downloading audio...")
+                status_placeholder.info("⬇️ Downloading audio...")
                 time.sleep(0.5)
                 
-                # Start download with temporary directory
+                # Create temporary directory
                 temp_dir = tempfile.mkdtemp()
                 result = download_video_as_mp3(url, temp_dir)
                 
                 progress_bar.progress(75)
-                status_placeholder.info("Converting to MP3...")
+                status_placeholder.info("🎵 Converting to MP3...")
                 time.sleep(0.5)
                 
                 progress_bar.progress(100)
                 
                 if result['success']:
-                    status_placeholder.success(result['message'])
+                    status_placeholder.success("✅ Conversion completed successfully!")
                     
-                    # Show download info
+                    # Show success animation
                     st.balloons()
                     
-                    # Read the MP3 file for download
-                    with open(result['file_path'], 'rb') as file:
-                        file_data = file.read()
+                    # Display file info
+                    st.success(f"**Title:** {result['title']}")
+                    if result['duration']:
+                        st.info(f"**Duration:** {format_duration(result['duration'])}")
                     
-                    file_size = len(file_data)
-                    st.write(f"**File ready:** {result['filename']} ({file_size // 1024} KB)")
-                    
-                    # Download button
-                    st.download_button(
-                        label="📥 Download MP3 File",
-                        data=file_data,
-                        file_name=result['filename'],
-                        mime="audio/mpeg",
-                        use_container_width=True
-                    )
-                    
-                    # Clean up temporary files after a delay
-                    @st.cache_data
-                    def cleanup_temp_dir(temp_path):
-                        try:
-                            shutil.rmtree(temp_path)
-                        except:
-                            pass
-                    
-                    # Schedule cleanup (will happen when user navigates away or after cache expires)
-                    cleanup_temp_dir(temp_dir)
-                    
+                    # Read file for download
+                    if result['file_path'] and os.path.exists(result['file_path']):
+                        with open(result['file_path'], 'rb') as file:
+                            file_data = file.read()
+                        
+                        file_size = len(file_data) // 1024  # KB
+                        st.write(f"**File size:** {file_size} KB")
+                        
+                        # Download button
+                        st.download_button(
+                            label="📥 Download MP3 File",
+                            data=file_data,
+                            file_name=result['filename'],
+                            mime="audio/mpeg",
+                            use_container_width=True
+                        )
+                    else:
+                        st.error("File was converted but could not be found for download")
+                        
                 else:
-                    status_placeholder.error(result['message'])
-                    # Clean up on failure
-                    try:
-                        shutil.rmtree(temp_dir)
-                    except:
-                        pass
+                    status_placeholder.error(f"❌ Conversion failed: {result['error']}")
                     
             except Exception as e:
-                status_placeholder.error(f"Unexpected error: {str(e)}")
-                # Clean up on error
-                try:
-                    if 'temp_dir' in locals():
-                        shutil.rmtree(temp_dir)
-                except:
-                    pass
+                status_placeholder.error(f"❌ Unexpected error: {str(e)}")
+            
             finally:
-                # Clear progress bar after a delay
+                # Clear progress after delay
                 time.sleep(2)
                 progress_placeholder.empty()
     
@@ -185,42 +176,34 @@ def main():
         # Instructions
         st.markdown("### 📖 How to use:")
         st.markdown("""
-        1. **Copy** a video URL (YouTube or MP4)
-        2. **Paste** it in the input field
-        3. **Preview** video info (optional)
-        4. **Click** Convert to MP3
-        5. **Wait** for the download to complete
+        1. **Copy** a video URL
+        2. **Paste** it in the input field  
+        3. **Click** Convert to MP3
+        4. **Wait** for processing
+        5. **Download** your MP3 file
         """)
         
         st.markdown("### ✨ Features:")
         st.markdown("""
         - 🎵 High quality MP3 (320kbps)
         - 🚀 Fast conversion
-        - 📱 Simple interface
+        - 📱 Works on any device
         - 🔒 Privacy focused
-        - 💾 Local processing
         - 📹 YouTube & MP4 support
         """)
         
-        st.markdown("### 📱 Mobile Friendly:")
+        st.markdown("### 🎯 Supported:")
         st.markdown("""
-        - Works on phones & tablets
-        - Direct download to device
-        - No file management needed
+        - **YouTube videos**
+        - **Direct MP4 URLs**
+        - **Most video formats**
         """)
         
         st.markdown("### 🔒 Privacy:")
         st.markdown("""
-        - No files stored on server
+        - No files stored permanently
         - Temporary processing only
         - Your downloads stay private
-        """)
-        
-        st.markdown("### ⚠️ YouTube Note:")
-        st.markdown("""
-        - YouTube may require browser login
-        - Use Chrome browser for best results
-        - Some videos may be geo-restricted
         """)
 
 if __name__ == "__main__":
