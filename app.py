@@ -101,6 +101,11 @@ def download_video_as_mp3(url, output_dir):
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Get video info
                 info = ydl.extract_info(url, download=False)
+                
+                # Check if info extraction was successful
+                if info is None:
+                    raise Exception("Failed to extract video information")
+                
                 title = info.get('title', 'Unknown')
                 duration = info.get('duration', 0)
                 
@@ -108,19 +113,21 @@ def download_video_as_mp3(url, output_dir):
                 ydl.download([url])
                 
                 # Find the downloaded MP3 file
-                safe_title = sanitize_filename(title)
                 mp3_file = None
                 for file in os.listdir(output_dir):
                     if file.endswith('.mp3'):
                         mp3_file = os.path.join(output_dir, file)
                         break
                 
+                if mp3_file is None:
+                    raise Exception("MP3 file was not created")
+                
                 return {
                     'success': True,
                     'title': title,
                     'duration': duration,
                     'file_path': mp3_file,
-                    'filename': os.path.basename(mp3_file) if mp3_file else None
+                    'filename': os.path.basename(mp3_file)
                 }
                 
         except Exception as first_error:
@@ -136,32 +143,106 @@ def download_video_as_mp3(url, output_dir):
                 'noplaylist': True,
                 'quiet': True,
                 'no_warnings': True,
-                'ignoreerrors': True,
+                'ignoreerrors': False,  # We want to catch errors in fallback
             }
             
-            with yt_dlp.YoutubeDL(minimal_opts) as ydl:
-                # Get video info
-                info = ydl.extract_info(url, download=False)
-                title = info.get('title', 'Unknown')
-                duration = info.get('duration', 0)
-                
-                # Download and convert
-                ydl.download([url])
-                
-                # Find the downloaded MP3 file
-                mp3_file = None
-                for file in os.listdir(output_dir):
-                    if file.endswith('.mp3'):
-                        mp3_file = os.path.join(output_dir, file)
-                        break
-                
-                return {
-                    'success': True,
-                    'title': title,
-                    'duration': duration,
-                    'file_path': mp3_file,
-                    'filename': os.path.basename(mp3_file) if mp3_file else None
+            try:
+                with yt_dlp.YoutubeDL(minimal_opts) as ydl:
+                    # Get video info
+                    info = ydl.extract_info(url, download=False)
+                    
+                    # Check if info extraction was successful
+                    if info is None:
+                        raise Exception("Failed to extract video information - video may be unavailable")
+                    
+                    title = info.get('title', 'Unknown')
+                    duration = info.get('duration', 0)
+                    
+                    # Download and convert
+                    ydl.download([url])
+                    
+                    # Find the downloaded MP3 file
+                    mp3_file = None
+                    for file in os.listdir(output_dir):
+                        if file.endswith('.mp3'):
+                            mp3_file = os.path.join(output_dir, file)
+                            break
+                    
+                    if mp3_file is None:
+                        raise Exception("MP3 file was not created")
+                    
+                    return {
+                        'success': True,
+                        'title': title,
+                        'duration': duration,
+                        'file_path': mp3_file,
+                        'filename': os.path.basename(mp3_file)
+                    }
+            except Exception as second_error:
+                # If both attempts fail, try one more time with absolute minimal options
+                ultra_minimal_opts = {
+                    'format': 'worst',  # Try worst quality first
+                    'outtmpl': os.path.join(output_dir, 'audio.%(ext)s'),
+                    'noplaylist': True,
+                    'quiet': True,
                 }
+                
+                try:
+                    with yt_dlp.YoutubeDL(ultra_minimal_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        
+                        if info is None:
+                            raise Exception("Video is not accessible or does not exist")
+                        
+                        title = info.get('title', 'Unknown')
+                        duration = info.get('duration', 0)
+                        
+                        # Download without conversion first
+                        ydl.download([url])
+                        
+                        # Find any downloaded file and try to convert manually
+                        downloaded_file = None
+                        for file in os.listdir(output_dir):
+                            if not file.endswith('.mp3'):
+                                downloaded_file = os.path.join(output_dir, file)
+                                break
+                        
+                        if downloaded_file:
+                            # Try to convert using FFmpeg through yt-dlp
+                            convert_opts = {
+                                'format': 'bestaudio',
+                                'postprocessors': [{
+                                    'key': 'FFmpegExtractAudio',
+                                    'preferredcodec': 'mp3',
+                                    'preferredquality': '128',
+                                }],
+                                'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
+                                'quiet': True,
+                            }
+                            
+                            with yt_dlp.YoutubeDL(convert_opts) as convert_ydl:
+                                convert_ydl.download([url])
+                            
+                            # Find the MP3 file
+                            mp3_file = None
+                            for file in os.listdir(output_dir):
+                                if file.endswith('.mp3'):
+                                    mp3_file = os.path.join(output_dir, file)
+                                    break
+                            
+                            if mp3_file:
+                                return {
+                                    'success': True,
+                                    'title': title,
+                                    'duration': duration,
+                                    'file_path': mp3_file,
+                                    'filename': os.path.basename(mp3_file)
+                                }
+                        
+                        raise Exception("Could not download or convert the video")
+                        
+                except Exception as third_error:
+                    raise Exception(f"All download attempts failed. Last error: {str(third_error)}")
             
     except yt_dlp.utils.DownloadError as e:
         error_msg = str(e)
