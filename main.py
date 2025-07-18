@@ -48,6 +48,18 @@ def download_video_as_mp3(video_url, temp_dir=None):
             'outtmpl': f'{temp_dir}/{safe_title}.%(ext)s',
             'quiet': True,
             'no_warnings': True,
+            # YouTube bot detection bypass
+            'cookiesfrombrowser': ('chrome',),  # Try to use Chrome cookies
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls'],
+                    'player_skip': ['js'],
+                }
+            },
+            # Additional headers to avoid bot detection
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -97,7 +109,21 @@ def download_youtube_as_mp3(youtube_url, temp_dir=None):
 def get_video_info(video_url):
     """Get video information without downloading"""
     try:
-        ydl_opts = {'quiet': True, 'no_warnings': True}
+        ydl_opts = {
+            'quiet': True, 
+            'no_warnings': True,
+            # YouTube bot detection bypass
+            'cookiesfrombrowser': ('chrome',),
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls'],
+                    'player_skip': ['js'],
+                }
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
             
