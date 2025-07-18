@@ -7,10 +7,21 @@ import time
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="Video to MP3 Converter",
+    page_title="NMG Video to Mp3",
     page_icon="🎵",
     layout="wide"
 )
+
+# Add SEO meta tags
+st.markdown("""
+<head>
+    <meta property="og:title" content="NMG Video to Mp3">
+    <meta property="og:description" content="Convert YouTube videos and MP4 files to high-quality MP3 files - Built by Nepal Media Group">
+    <meta property="og:type" content="website">
+    <meta name="description" content="Convert YouTube videos and MP4 files to high-quality MP3 files - Built by Nepal Media Group">
+    <meta name="keywords" content="video to mp3, youtube converter, mp3 converter, nepal media group, nmg">
+</head>
+""", unsafe_allow_html=True)
 
 def format_duration(seconds):
     """Format duration from seconds to MM:SS"""
