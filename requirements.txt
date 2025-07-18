@@ -1,2 +1,2 @@
-yt-dlp[default]
-streamlit
+yt-dlp[default]>=2024.7.16
+streamlit>=1.28.0
