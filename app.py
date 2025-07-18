@@ -15,7 +15,7 @@ def sanitize_filename(filename):
 def download_video_as_mp3(url, output_dir):
     """Download video as MP3"""
     try:
-        # Enhanced yt-dlp options with bot detection bypass
+        # Basic yt-dlp options without cookies
         ydl_opts = {
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -26,6 +26,7 @@ def download_video_as_mp3(url, output_dir):
             'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
             'noplaylist': True,
             'quiet': True,
+            'no_warnings': True,
             # Enhanced bot detection bypass
             'extractor_args': {
                 'youtube': {
@@ -46,27 +47,56 @@ def download_video_as_mp3(url, output_dir):
             }
         }
         
-        # Try to add cookies if available, but don't fail if not found
-        # This is optional and will be skipped in Docker containers
+        # Only try cookies if we're in a local environment (not container/server)
         try:
-            # Only try cookies if we're not in a container environment
-            if not os.path.exists('/.dockerenv'):  # Not in Docker
-                for browser in ['chrome', 'firefox', 'safari', 'edge']:
-                    try:
-                        # Test if browser cookies are accessible
-                        test_opts = {'quiet': True, 'cookiesfrombrowser': (browser,)}
-                        with yt_dlp.YoutubeDL(test_opts) as test_ydl:
-                            # If this doesn't raise an exception, cookies are accessible
-                            ydl_opts['cookiesfrombrowser'] = (browser,)
-                            break
-                    except:
-                        # Browser cookies not available, try next browser
-                        continue
-        except:
-            # If any error occurs, just continue without cookies
+            # Check if we're in a containerized environment
+            is_container = (
+                os.path.exists('/.dockerenv') or  # Docker
+                os.path.exists('/proc/1/cgroup') or  # Container
+                os.environ.get('STREAMLIT_SHARING_MODE') or  # Streamlit Cloud
+                os.environ.get('RAILWAY_ENVIRONMENT') or  # Railway
+                os.environ.get('HEROKU_APP_NAME') or  # Heroku
+                os.environ.get('VERCEL') or  # Vercel
+                not os.path.exists(os.path.expanduser('~'))  # No home directory
+            )
+            
+            if not is_container:
+                # Try to find browser cookies only in local environment
+                browser_paths = {
+                    'chrome': [
+                        os.path.expanduser('~/.config/google-chrome/Default/Cookies'),
+                        os.path.expanduser('~/Library/Application Support/Google/Chrome/Default/Cookies'),
+                        os.path.expanduser('~/AppData/Local/Google/Chrome/User Data/Default/Cookies')
+                    ],
+                    'firefox': [
+                        os.path.expanduser('~/.mozilla/firefox/*/cookies.sqlite'),
+                        os.path.expanduser('~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite'),
+                        os.path.expanduser('~/AppData/Roaming/Mozilla/Firefox/Profiles/*/cookies.sqlite')
+                    ]
+                }
+                
+                for browser, paths in browser_paths.items():
+                    for path in paths:
+                        if os.path.exists(path):
+                            try:
+                                # Test if cookies are accessible
+                                test_opts = ydl_opts.copy()
+                                test_opts['cookiesfrombrowser'] = (browser,)
+                                test_opts['quiet'] = True
+                                
+                                with yt_dlp.YoutubeDL(test_opts) as test_ydl:
+                                    # Quick test - if this works, use cookies
+                                    ydl_opts['cookiesfrombrowser'] = (browser,)
+                                    break
+                            except:
+                                continue
+                    if 'cookiesfrombrowser' in ydl_opts:
+                        break
+        except Exception as e:
+            # If any error occurs with cookies, just continue without them
             pass
         
-        # Try downloading with enhanced options
+        # First attempt with current options
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Get video info
@@ -81,7 +111,7 @@ def download_video_as_mp3(url, output_dir):
                 safe_title = sanitize_filename(title)
                 mp3_file = None
                 for file in os.listdir(output_dir):
-                    if file.endswith('.mp3') and safe_title[:20] in file:
+                    if file.endswith('.mp3'):
                         mp3_file = os.path.join(output_dir, file)
                         break
                 
@@ -92,21 +122,24 @@ def download_video_as_mp3(url, output_dir):
                     'file_path': mp3_file,
                     'filename': os.path.basename(mp3_file) if mp3_file else None
                 }
+                
         except Exception as first_error:
-            # If first attempt fails, try with basic options (no cookies, no special headers)
-            basic_opts = {
+            # If first attempt fails, try with minimal options
+            minimal_opts = {
                 'format': 'bestaudio/best',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
-                    'preferredquality': '320',
+                    'preferredquality': '192',  # Lower quality for better compatibility
                 }],
                 'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
                 'noplaylist': True,
                 'quiet': True,
+                'no_warnings': True,
+                'ignoreerrors': True,
             }
             
-            with yt_dlp.YoutubeDL(basic_opts) as ydl:
+            with yt_dlp.YoutubeDL(minimal_opts) as ydl:
                 # Get video info
                 info = ydl.extract_info(url, download=False)
                 title = info.get('title', 'Unknown')
@@ -116,10 +149,9 @@ def download_video_as_mp3(url, output_dir):
                 ydl.download([url])
                 
                 # Find the downloaded MP3 file
-                safe_title = sanitize_filename(title)
                 mp3_file = None
                 for file in os.listdir(output_dir):
-                    if file.endswith('.mp3') and safe_title[:20] in file:
+                    if file.endswith('.mp3'):
                         mp3_file = os.path.join(output_dir, file)
                         break
                 
@@ -146,12 +178,12 @@ def download_video_as_mp3(url, output_dir):
         elif "cookies" in error_msg.lower():
             return {
                 'success': False,
-                'error': "⚠️ Cookie Issue: Unable to access browser cookies. This is normal in containers.\nTrying alternative methods..."
+                'error': "⚠️ Cookie Issue: Running in server environment without browser cookies. This is normal for deployed apps."
             }
         else:
             return {
                 'success': False,
-                'error': f"❌ Download Failed: Try a different video or check if the URL is valid."
+                'error': f"❌ Download Failed: {error_msg}"
             }
     except Exception as e:
         return {
@@ -306,12 +338,12 @@ def main():
         - Your downloads stay private
         """)
         
-        st.markdown("### ⚠️ YouTube Note:")
+        st.markdown("### ⚠️ Important Notes:")
         st.markdown("""
-        - YouTube may require browser login
-        - Use Chrome browser for best results
+        - Works best with public videos
         - Some videos may be geo-restricted
-        - Try MP4 URLs if YouTube fails
+        - Age-restricted content may fail
+        - Try direct MP4 URLs if YouTube fails
         """)
 
 if __name__ == "__main__":
