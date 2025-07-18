@@ -38,7 +38,7 @@ def download_video_as_mp3(video_url, temp_dir=None):
         # Sanitize title for filename
         safe_title = sanitize_filename(title)
         
-        # Base options
+        # Base options with enhanced bot detection bypass
         ydl_opts = {
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -49,9 +49,23 @@ def download_video_as_mp3(video_url, temp_dir=None):
             'outtmpl': f'{temp_dir}/{safe_title}.%(ext)s',
             'quiet': True,
             'no_warnings': True,
-            # Additional headers to avoid bot detection
+            # Enhanced bot detection bypass
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls'],
+                    'player_skip': ['configs', 'webpage'],
+                    'player_client': ['android', 'web'],
+                }
+            },
+            # Headers to mimic real browser
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Accept-Encoding': 'gzip,deflate',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
             }
         }
         
@@ -99,17 +113,23 @@ def download_video_as_mp3(video_url, temp_dir=None):
             
     except yt_dlp.utils.DownloadError as e:
         error_msg = str(e)
-        if "Sign in to confirm you're not a bot" in error_msg:
+        if "Sign in to confirm you're not a bot" in error_msg or "bot" in error_msg.lower():
             return {
                 'success': False,
                 'error': str(e),
-                'message': "YouTube requires sign-in verification. Try using a different video or wait a few minutes before trying again."
+                'message': "⚠️ YouTube Bot Detection: This video requires authentication. Try:\n• Using a different YouTube video\n• Waiting 10-15 minutes before trying again\n• Using a direct MP4 URL instead"
+            }
+        elif "Video unavailable" in error_msg or "private" in error_msg.lower():
+            return {
+                'success': False,
+                'error': str(e),
+                'message': "❌ Video Not Available: This video may be private, age-restricted, or geo-blocked."
             }
         else:
             return {
                 'success': False,
                 'error': str(e),
-                'message': "Download failed. Try a different video URL or try again later."
+                'message': "❌ Download Failed: Try a different video URL or try again later."
             }
     except Exception as e:
         return {
@@ -129,8 +149,21 @@ def get_video_info(video_url):
         ydl_opts = {
             'quiet': True, 
             'no_warnings': True,
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls'],
+                    'player_skip': ['configs', 'webpage'],
+                    'player_client': ['android', 'web'],
+                }
+            },
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Accept-Encoding': 'gzip,deflate',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
             }
         }
         
