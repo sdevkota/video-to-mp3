@@ -12,7 +12,7 @@ def sanitize_filename(filename):
     filename = re.sub(r'\s+', ' ', filename)
     return filename.strip()
 
-def download_video_as_mp3(url, output_dir):
+def download_video_as_mp3(url, output_dir, cookies_file=None):
     """Download video as MP3"""
     try:
         # Basic yt-dlp options without cookies
@@ -47,54 +47,80 @@ def download_video_as_mp3(url, output_dir):
             }
         }
         
-        # Only try cookies if we're in a local environment (not container/server)
-        try:
-            # Check if we're in a containerized environment
-            is_container = (
-                os.path.exists('/.dockerenv') or  # Docker
-                os.path.exists('/proc/1/cgroup') or  # Container
-                os.environ.get('STREAMLIT_SHARING_MODE') or  # Streamlit Cloud
-                os.environ.get('RAILWAY_ENVIRONMENT') or  # Railway
-                os.environ.get('HEROKU_APP_NAME') or  # Heroku
-                os.environ.get('VERCEL') or  # Vercel
-                not os.path.exists(os.path.expanduser('~'))  # No home directory
-            )
-            
-            if not is_container:
-                # Try to find browser cookies only in local environment
-                browser_paths = {
-                    'chrome': [
-                        os.path.expanduser('~/.config/google-chrome/Default/Cookies'),
-                        os.path.expanduser('~/Library/Application Support/Google/Chrome/Default/Cookies'),
-                        os.path.expanduser('~/AppData/Local/Google/Chrome/User Data/Default/Cookies')
-                    ],
-                    'firefox': [
-                        os.path.expanduser('~/.mozilla/firefox/*/cookies.sqlite'),
-                        os.path.expanduser('~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite'),
-                        os.path.expanduser('~/AppData/Roaming/Mozilla/Firefox/Profiles/*/cookies.sqlite')
-                    ]
-                }
+        # If cookies file is provided, use it
+        if cookies_file and os.path.exists(cookies_file):
+            ydl_opts['cookiefile'] = cookies_file
+        else:
+            # Smart cookie handling - try different approaches based on environment
+            try:
+                # Check if we're in a containerized environment
+                is_container = (
+                    os.path.exists('/.dockerenv') or  # Docker
+                    os.path.exists('/proc/1/cgroup') or  # Container
+                    os.environ.get('STREAMLIT_SHARING_MODE') or  # Streamlit Cloud
+                    os.environ.get('RAILWAY_ENVIRONMENT') or  # Railway
+                    os.environ.get('HEROKU_APP_NAME') or  # Heroku
+                    os.environ.get('VERCEL') or  # Vercel
+                    not os.path.exists(os.path.expanduser('~'))  # No home directory
+                )
                 
-                for browser, paths in browser_paths.items():
-                    for path in paths:
-                        if os.path.exists(path):
-                            try:
-                                # Test if cookies are accessible
-                                test_opts = ydl_opts.copy()
-                                test_opts['cookiesfrombrowser'] = (browser,)
-                                test_opts['quiet'] = True
-                                
-                                with yt_dlp.YoutubeDL(test_opts) as test_ydl:
-                                    # Quick test - if this works, use cookies
-                                    ydl_opts['cookiesfrombrowser'] = (browser,)
-                                    break
-                            except:
-                                continue
-                    if 'cookiesfrombrowser' in ydl_opts:
-                        break
-        except Exception as e:
-            # If any error occurs with cookies, just continue without them
-            pass
+                # Try to use cookies from various sources
+                cookie_sources = []
+                
+                if not is_container:
+                    # Local environment - try browser cookies
+                    browser_configs = [
+                        ('chrome', None),  # Default Chrome location
+                        ('firefox', None),  # Default Firefox location
+                        ('safari', None),  # Default Safari location (macOS)
+                        ('edge', None),  # Default Edge location
+                    ]
+                    
+                    # Also try common alternative Chrome locations
+                    alt_chrome_paths = [
+                        '~/.var/app/com.google.Chrome/',  # Flatpak Chrome
+                        '~/.config/chromium/',  # Chromium
+                        '~/snap/chromium/common/chromium/',  # Snap Chromium
+                    ]
+                    
+                    for path in alt_chrome_paths:
+                        expanded_path = os.path.expanduser(path)
+                        if os.path.exists(expanded_path):
+                            browser_configs.append(('chrome', expanded_path))
+                    
+                    cookie_sources.extend(browser_configs)
+                
+                # Try each cookie source
+                for browser, path in cookie_sources:
+                    try:
+                        if path:
+                            # Use specific path
+                            ydl_opts['cookiesfrombrowser'] = (browser, path)
+                        else:
+                            # Use default path
+                            ydl_opts['cookiesfrombrowser'] = (browser,)
+                        
+                        # Test if this cookie source works
+                        test_opts = ydl_opts.copy()
+                        test_opts['quiet'] = True
+                        test_opts['no_warnings'] = True
+                        
+                        with yt_dlp.YoutubeDL(test_opts) as test_ydl:
+                            # If we can create the YoutubeDL instance without error, cookies are working
+                            break
+                            
+                    except Exception as e:
+                        # This cookie source failed, try the next one
+                        if 'cookiesfrombrowser' in ydl_opts:
+                            del ydl_opts['cookiesfrombrowser']
+                        continue
+                
+                # If no cookies worked, that's fine - continue without them
+                
+            except Exception as e:
+                # If any error occurs with cookies, just continue without them
+                if 'cookiesfrombrowser' in ydl_opts:
+                    del ydl_opts['cookiesfrombrowser']
         
         # First attempt with current options
         try:
@@ -308,6 +334,21 @@ def main():
             help="Paste a YouTube video URL or direct MP4 file URL here"
         )
         
+        # Cookie file upload (optional)
+        with st.expander("🍪 Advanced: Upload Cookies File (Optional)", expanded=False):
+            st.markdown("""
+            **For age-restricted or private videos:**
+            - Export cookies from your browser using a browser extension
+            - Upload the cookies.txt file here
+            - File must be in Netscape/Mozilla format
+            """)
+            
+            cookies_file = st.file_uploader(
+                "Upload cookies.txt file",
+                type=['txt'],
+                help="Optional: Upload browser cookies to access restricted content"
+            )
+        
         # Convert button
         if url and st.button("🎵 Convert & Download MP3", type="primary", use_container_width=True):
             if not url.strip():
@@ -325,6 +366,25 @@ def main():
                 progress_bar = st.progress(0)
             
             try:
+                # Handle cookies file if uploaded
+                cookies_path = None
+                if cookies_file is not None:
+                    # Save uploaded cookies file temporarily
+                    temp_cookies_dir = tempfile.mkdtemp()
+                    cookies_path = os.path.join(temp_cookies_dir, "cookies.txt")
+                    with open(cookies_path, "wb") as f:
+                        f.write(cookies_file.getvalue())
+                    
+                    # Validate cookies file format
+                    try:
+                        with open(cookies_path, "r") as f:
+                            first_line = f.readline().strip()
+                            if not (first_line.startswith("# HTTP Cookie File") or 
+                                   first_line.startswith("# Netscape HTTP Cookie File")):
+                                st.warning("⚠️ Cookies file may not be in correct format. First line should be '# HTTP Cookie File' or '# Netscape HTTP Cookie File'")
+                    except:
+                        st.warning("⚠️ Could not validate cookies file format")
+                
                 # Update progress
                 progress_bar.progress(25)
                 status_placeholder.info("📋 Extracting video information...")
@@ -336,7 +396,7 @@ def main():
                 
                 # Create temporary directory
                 temp_dir = tempfile.mkdtemp()
-                result = download_video_as_mp3(url, temp_dir)
+                result = download_video_as_mp3(url, temp_dir, cookies_path)
                 
                 progress_bar.progress(75)
                 status_placeholder.info("🎵 Converting to MP3...")
@@ -425,6 +485,30 @@ def main():
         - Some videos may be geo-restricted
         - Age-restricted content may fail
         - Try direct MP4 URLs if YouTube fails
+        """)
+        
+        st.markdown("### 🍪 For Restricted Content:")
+        st.markdown("""
+        **If you get bot detection or login errors:**
+        1. **Export cookies** from your browser:
+           - Chrome: Use "Get cookies.txt LOCALLY" extension
+           - Firefox: Use "cookies.txt" extension
+        2. **Upload the cookies.txt file** in the advanced section
+        3. **Try the conversion again**
+        
+        **Cookie file format:**
+        - Must start with `# HTTP Cookie File`
+        - Must be in Netscape/Mozilla format
+        - Contains your login session data
+        """)
+        
+        st.markdown("### 💡 Tips:")
+        st.markdown("""
+        - **Public videos**: No cookies needed
+        - **Age-restricted**: Cookies required
+        - **Private videos**: Must be logged in
+        - **Geo-blocked**: Use VPN + cookies
+        - **Bot detection**: Wait 15 mins, try again
         """)
 
 if __name__ == "__main__":
