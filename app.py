@@ -215,6 +215,13 @@ def main():
         - Temporary processing only
         - Your downloads stay private
         """)
+        
+        st.markdown("### ⚠️ YouTube Note:")
+        st.markdown("""
+        - YouTube may require browser login
+        - Use Chrome browser for best results
+        - Some videos may be geo-restricted
+        """)
 
 if __name__ == "__main__":
     main()

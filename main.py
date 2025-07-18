@@ -38,6 +38,7 @@ def download_video_as_mp3(video_url, temp_dir=None):
         # Sanitize title for filename
         safe_title = sanitize_filename(title)
         
+        # Base options
         ydl_opts = {
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -48,19 +49,27 @@ def download_video_as_mp3(video_url, temp_dir=None):
             'outtmpl': f'{temp_dir}/{safe_title}.%(ext)s',
             'quiet': True,
             'no_warnings': True,
-            # YouTube bot detection bypass
-            'cookiesfrombrowser': ('chrome',),  # Try to use Chrome cookies
-            'extractor_args': {
-                'youtube': {
-                    'skip': ['dash', 'hls'],
-                    'player_skip': ['js'],
-                }
-            },
             # Additional headers to avoid bot detection
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         }
+        
+        # Try to add cookies if available, but don't fail if not found
+        try:
+            # Try different browsers in order of preference
+            for browser in ['chrome', 'firefox', 'safari', 'edge']:
+                try:
+                    ydl_opts['cookiesfrombrowser'] = (browser,)
+                    # Test if cookies are accessible by creating a temporary YoutubeDL instance
+                    with yt_dlp.YoutubeDL({'quiet': True, 'cookiesfrombrowser': (browser,)}) as test_ydl:
+                        pass  # If this doesn't raise an exception, cookies are accessible
+                    break  # Successfully found cookies, stop trying other browsers
+                except:
+                    continue  # Try next browser
+        except:
+            # If no cookies work, remove the option and continue without cookies
+            ydl_opts.pop('cookiesfrombrowser', None)
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
@@ -89,11 +98,19 @@ def download_video_as_mp3(video_url, temp_dir=None):
             }
             
     except yt_dlp.utils.DownloadError as e:
-        return {
-            'success': False,
-            'error': str(e),
-            'message': "Download failed. Try updating yt-dlp or use a different video URL."
-        }
+        error_msg = str(e)
+        if "Sign in to confirm you're not a bot" in error_msg:
+            return {
+                'success': False,
+                'error': str(e),
+                'message': "YouTube requires sign-in verification. Try using a different video or wait a few minutes before trying again."
+            }
+        else:
+            return {
+                'success': False,
+                'error': str(e),
+                'message': "Download failed. Try a different video URL or try again later."
+            }
     except Exception as e:
         return {
             'success': False,
@@ -112,18 +129,23 @@ def get_video_info(video_url):
         ydl_opts = {
             'quiet': True, 
             'no_warnings': True,
-            # YouTube bot detection bypass
-            'cookiesfrombrowser': ('chrome',),
-            'extractor_args': {
-                'youtube': {
-                    'skip': ['dash', 'hls'],
-                    'player_skip': ['js'],
-                }
-            },
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         }
+        
+        # Try to add cookies if available, but don't fail if not found
+        try:
+            for browser in ['chrome', 'firefox', 'safari', 'edge']:
+                try:
+                    ydl_opts['cookiesfrombrowser'] = (browser,)
+                    with yt_dlp.YoutubeDL({'quiet': True, 'cookiesfrombrowser': (browser,)}) as test_ydl:
+                        pass
+                    break
+                except:
+                    continue
+        except:
+            ydl_opts.pop('cookiesfrombrowser', None)
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
             
