@@ -15,7 +15,7 @@ def sanitize_filename(filename):
 def download_video_as_mp3(url, output_dir):
     """Download video as MP3"""
     try:
-        # Configure yt-dlp options
+        # Enhanced yt-dlp options with bot detection bypass
         ydl_opts = {
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -26,7 +26,38 @@ def download_video_as_mp3(url, output_dir):
             'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
             'noplaylist': True,
             'quiet': True,
+            # Enhanced bot detection bypass
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls'],
+                    'player_skip': ['configs', 'webpage'],
+                    'player_client': ['android', 'web'],
+                }
+            },
+            # Headers to mimic real browser
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Accept-Encoding': 'gzip,deflate',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            }
         }
+        
+        # Try to add cookies if available, but don't fail if not found
+        try:
+            for browser in ['chrome', 'firefox', 'safari', 'edge']:
+                try:
+                    ydl_opts['cookiesfrombrowser'] = (browser,)
+                    with yt_dlp.YoutubeDL({'quiet': True, 'cookiesfrombrowser': (browser,)}) as test_ydl:
+                        pass
+                    break
+                except:
+                    continue
+        except:
+            ydl_opts.pop('cookiesfrombrowser', None)
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # Get video info
@@ -53,10 +84,27 @@ def download_video_as_mp3(url, output_dir):
                 'filename': os.path.basename(mp3_file) if mp3_file else None
             }
             
+    except yt_dlp.utils.DownloadError as e:
+        error_msg = str(e)
+        if "Sign in to confirm you're not a bot" in error_msg or "bot" in error_msg.lower():
+            return {
+                'success': False,
+                'error': "⚠️ YouTube Bot Detection: This video requires authentication. Try:\n• Using a different YouTube video\n• Waiting 10-15 minutes before trying again\n• Using a direct MP4 URL instead"
+            }
+        elif "Video unavailable" in error_msg or "private" in error_msg.lower():
+            return {
+                'success': False,
+                'error': "❌ Video Not Available: This video may be private, age-restricted, or geo-blocked."
+            }
+        else:
+            return {
+                'success': False,
+                'error': f"❌ Download Failed: {str(e)}"
+            }
     except Exception as e:
         return {
             'success': False,
-            'error': str(e)
+            'error': f"❌ Unexpected Error: {str(e)}"
         }
 
 def format_duration(seconds):
@@ -204,6 +252,14 @@ def main():
         - No files stored permanently
         - Temporary processing only
         - Your downloads stay private
+        """)
+        
+        st.markdown("### ⚠️ YouTube Note:")
+        st.markdown("""
+        - YouTube may require browser login
+        - Use Chrome browser for best results
+        - Some videos may be geo-restricted
+        - Try MP4 URLs if YouTube fails
         """)
 
 if __name__ == "__main__":

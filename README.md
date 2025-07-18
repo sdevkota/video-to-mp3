@@ -107,6 +107,9 @@ docker-compose up --build -d
 - **Input**: YouTube videos, MP4 files
 - **Output**: MP3 (320kbps)
 
+## Killl Docker Container
+sudo kill -9 $(sudo docker inspect --format '{{.State.Pid}}' nmg-video-converter)
+
 ## Built By
 
 Nepal Media Group
