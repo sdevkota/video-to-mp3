@@ -80,3 +80,12 @@ python main.py
 docker-compose up -d
 ```
 
+### Production
+```bash
+sudo docker inspect --format '{{.State.Pid}}' video-to-mp3_web_1
+Example output: 12345
+sudo kill -9 12345
+
+
+```
+
