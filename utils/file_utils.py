@@ -121,8 +121,12 @@ def get_file_info(file_path: str) -> Optional[Dict[str, Any]]:
         
         return {
             'duration': duration,
+            'duration_min': duration / 60 if duration else 0,
             'format': format_name,
+            'format_name': format_name,
             'file_size': file_size,
+            'file_size_mb': file_size / (1024 * 1024) if file_size else 0,
+            'bitrate_kbps': int(format_info.get('bit_rate', 0)) / 1000 if format_info.get('bit_rate') else 0,
             'has_video': has_video,
             'has_audio': has_audio,
             'video_info': video_info,
@@ -131,13 +135,28 @@ def get_file_info(file_path: str) -> Optional[Dict[str, Any]]:
                 'video': len(video_streams),
                 'audio': len(audio_streams),
                 'total': len(streams)
-            }
+            },
+            'video_streams_count': len(video_streams),
+            'audio_streams_count': len(audio_streams)
         }
         
     except (subprocess.CalledProcessError, json.JSONDecodeError, 
             subprocess.TimeoutExpired, Exception) as e:
         print(f"Error getting file info: {e}")
         return None
+
+def check_file_format(filename: str, allowed_formats: list) -> bool:
+    """
+    Check if file has an allowed format (alias for validate_file_format)
+    
+    Args:
+        filename: Name of the file
+        allowed_formats: List of allowed file extensions (without dots)
+    
+    Returns:
+        True if format is allowed, False otherwise
+    """
+    return validate_file_format(filename, allowed_formats)
 
 def format_duration(seconds: float) -> str:
     """

@@ -4,7 +4,7 @@ from pathlib import Path
 
 # Import our modules
 from utils.file_utils import check_ffmpeg
-from pages import youtube_converter, audio_converter, video_converter, media_tools
+from pages import youtube_converter, audio_converter, video_converter, media_tools, nepali_converter
 from config import APP_CONFIG
 
 def main():
@@ -76,7 +76,8 @@ def main():
             "🎥 YouTube Converter": "youtube",
             "🎵 Audio Converter": "audio",
             "🎬 Video Converter": "video", 
-            "🛠️ Media Tools": "tools"
+            "🛠️ Media Tools": "tools",
+            "🇳🇵 English to Nepali": "nepali"
         }
         
         selected_page = st.radio("Select Tool:", list(pages.keys()))
@@ -91,6 +92,7 @@ def main():
         - **Audio Converter** - Multiple formats
         - **Video Converter** - High quality output
         - **Media Tools** - Extract, compress, analyze
+        - **English to Nepali** - Translation & font conversion
         """)
         
         st.markdown("### 🔧 Supported Formats")
@@ -135,6 +137,8 @@ def main():
         video_converter.render_page()
     elif page_key == "tools":
         media_tools.render_page()
+    elif page_key == "nepali":
+        nepali_converter.render_page()
 
 if __name__ == "__main__":
     main()
