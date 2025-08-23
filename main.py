@@ -4,8 +4,7 @@ from pathlib import Path
 
 # Import our modules
 from utils.file_utils import check_ffmpeg
-from pages import youtube_converter, audio_converter, video_converter, media_tools, english_to_nepali_converter
-from config import APP_CONFIG
+from tools import youtube_converter, audio_converter, video_converter, media_tools
 
 def main():
     """Main application entry point"""
@@ -21,6 +20,7 @@ def main():
     # Custom CSS
     st.markdown("""
     <style>
+
     .main-header {
         text-align: center;
         padding: 2rem 0;
@@ -45,7 +45,6 @@ def main():
         font-weight: bold;
     }
     .tool-card {
-        background: white;
         padding: 1.5rem;
         border-radius: 15px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -82,14 +81,6 @@ def main():
     with st.sidebar:
         st.title("🎛️ Navigation")
         
-        # FFmpeg status
-        if ffmpeg_available:
-            st.markdown('<p class="status-success">✅ FFmpeg Available</p>', unsafe_allow_html=True)
-        else:
-            st.markdown('<p class="status-error">❌ FFmpeg Not Found</p>', unsafe_allow_html=True)
-            st.error("FFmpeg is required for conversions. Please install FFmpeg to use this application.")
-        
-        st.markdown("---")
         
         # Navigation menu
         pages = {
@@ -124,7 +115,7 @@ def main():
         """)
         
         st.markdown("---")
-        st.markdown("*Built with Streamlit & FFmpeg*")
+        st.markdown("*Built with Love by Nepal Media Group - For internal use only*")
     
     # Main content area
     if not ffmpeg_available:
@@ -285,20 +276,13 @@ def main():
         """)
         
         # Quick start button
-        st.markdown("## 🚀 Ready to Start Converting?")
-        st.markdown("""
-        <div style="text-align: center;">
-            <a href="https://github.com/your-repo" class="get-started-btn">
-                📚 View Documentation
-            </a>
-        </div>
-        """, unsafe_allow_html=True)
+  
         
         # Footer
         st.markdown("---")
         st.markdown("""
         <div style="text-align: center; color: #666;">
-            <p>Built with ❤️ using Streamlit & FFmpeg</p>
+            <p>Built with ❤️ By Nepal Media Group</p>
             <p>Complete Media Converter Suite - Your all-in-one media solution</p>
         </div>
         """, unsafe_allow_html=True)
