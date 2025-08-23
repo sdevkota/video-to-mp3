@@ -119,10 +119,35 @@ fi
 
 echo ""
 
-# Run the app
-echo "🚀 Starting Complete Media Converter Suite..."
+# Check if app is already running
+PID_FILE="streamlit.pid"
+if [ -f "$PID_FILE" ]; then
+    PID=$(cat "$PID_FILE")
+    if ps -p $PID > /dev/null 2>&1; then
+        echo "⚠️  Application is already running (PID: $PID)"
+        echo "   Access it at: http://localhost:8501"
+        echo ""
+        read -p "   Stop existing instance and start new one? (y/n): " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "🛑 Stopping existing instance..."
+            kill $PID
+            rm -f "$PID_FILE"
+            sleep 2
+        else
+            echo "👋 Application is already running. Exiting."
+            exit 0
+        fi
+    else
+        echo "🧹 Cleaning up stale PID file..."
+        rm -f "$PID_FILE"
+    fi
+fi
+
+# Run the app in background
+echo "🚀 Starting Complete Media Converter Suite in background..."
 echo "📱 Your browser will open automatically"
-echo "🌐 If not, visit: http://localhost:8501"
+echo "🌐 Access at: http://localhost:8501"
 echo ""
 echo "🎯 Available Tools:"
 echo "   - 🎥 YouTube Converter"
@@ -131,11 +156,41 @@ echo "   - 🎬 Video Converter"
 echo "   - 🛠️ Media Tools"
 echo "   - 🇳🇵 English to Nepali"
 echo ""
-echo "Press Ctrl+C to stop the application"
-echo ""
 
-# Run streamlit
-$PYTHON_CMD -m streamlit run main.py
+# Start Streamlit in background and save PID
+nohup $PYTHON_CMD -m streamlit run main.py --server.port 8501 --server.headless true > streamlit.log 2>&1 &
+STREAMLIT_PID=$!
 
-echo ""
-echo "👋 Thank you for using Complete Media Converter Suite!"
+# Save PID to file
+echo $STREAMLIT_PID > "$PID_FILE"
+
+# Wait a moment for the app to start
+sleep 3
+
+# Check if the app started successfully
+if ps -p $STREAMLIT_PID > /dev/null 2>&1; then
+    echo "✅ Application started successfully (PID: $STREAMLIT_PID)"
+    echo "📝 Log file: streamlit.log"
+    echo "🆔 PID file: $PID_FILE"
+    echo ""
+    echo "💡 Management commands:"
+    echo "   - View logs: tail -f streamlit.log"
+    echo "   - Stop app: kill $STREAMLIT_PID"
+    echo "   - Check status: ps -p $STREAMLIT_PID"
+    echo ""
+    echo "🌐 Open your browser and go to: http://localhost:8501"
+    echo ""
+    echo "Press Enter to view logs, or Ctrl+C to exit (app will continue running)"
+    read -p ""
+    
+    # Show logs if user pressed Enter
+    if [ $? -eq 0 ]; then
+        echo "📋 Showing recent logs (Ctrl+C to exit logs):"
+        tail -f streamlit.log
+    fi
+else
+    echo "❌ Failed to start application"
+    echo "📝 Check streamlit.log for error details"
+    rm -f "$PID_FILE"
+    exit 1
+fi
