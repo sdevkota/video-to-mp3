@@ -1,12 +1,5 @@
-# Set MIME type based on format
-                            mime_types = {
-                                "mp3": "audio/mpeg",
-                                "wav": "audio/wav",
-                                "flac": "audio/flac",
-                                "aac": "audio/aac",
-                                "ogg": "audio/ogg"
-                            }
-                            mime_type = mime_types.get(output_format, "audio/mpeg")import streamlit as st
+
+
 import yt_dlp
 import os
 import tempfile
