@@ -16,14 +16,9 @@ def main():
     st.markdown(
     """
     <head>
-        <!-- Basic SEO -->
         <title>NMG Media Converter</title>
         <meta name="description" content="A powerful media converter app.">
         <meta name="keywords" content="">
-
-        <!-- Open Graph -->
-        <meta property="og:title" content="My Streamlit Dashboard">
-        <meta property="og:description" content="NMG Media Converter">
     </head>
     """,
     unsafe_allow_html=True
