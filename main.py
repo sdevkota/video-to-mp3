@@ -89,7 +89,6 @@ def main():
             "🎵 Audio Converter": "audio",
             "🎬 Video Converter": "video", 
             "🛠️ Media Tools": "tools",
-            "🇳🇵 Nepali Unicode": "nepali"
         }
         
         selected_page = st.radio("Select Tool:", list(pages.keys()))
@@ -104,7 +103,6 @@ def main():
         - **Audio Converter** - Multiple formats
         - **Video Converter** - High quality output
         - **Media Tools** - Extract, compress, analyze
-        - **Nepali Unicode** - Advanced IME converter
         """)
         
         st.markdown("### 🔧 Supported Formats")
@@ -212,17 +210,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
             
-            st.markdown("""
-            <div class="tool-card">
-                <h3>🇳🇵 Nepali Unicode Converter</h3>
-                <p>Advanced IME with smart phonetic rules and lexicon overrides for professional Nepali text conversion.</p>
-                <ul>
-                    <li>Smart transliteration engine</li>
-                    <li>Context-aware anusvara insertion</li>
-                    <li>Zero-width character control</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+
             
             st.markdown("""
             <div class="tool-card">
@@ -295,8 +283,6 @@ def main():
         video_converter.render_page()
     elif page_key == "tools":
         media_tools.render_page()
-    elif page_key == "nepali":
-        english_to_nepali_converter.main()
 
 if __name__ == "__main__":
     main()
