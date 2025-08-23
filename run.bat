@@ -126,7 +126,7 @@ echo    - 🎥 YouTube Converter
 echo    - 🎵 Audio Converter
 echo    - 🎬 Video Converter
 echo    - 🛠️ Media Tools
-echo    - 🇳🇵 English to Nepali
+
 echo.
 echo Press Ctrl+C to stop the application
 echo.

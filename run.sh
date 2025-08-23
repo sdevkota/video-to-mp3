@@ -154,7 +154,7 @@ echo "   - 🎥 YouTube Converter"
 echo "   - 🎵 Audio Converter"
 echo "   - 🎬 Video Converter"
 echo "   - 🛠️ Media Tools"
-echo "   - 🇳🇵 English to Nepali"
+
 echo ""
 
 # Start Streamlit in background and save PID

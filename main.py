@@ -6,6 +6,11 @@ from pathlib import Path
 from utils.file_utils import check_ffmpeg
 from tools import youtube_converter, audio_converter, video_converter, media_tools
 
+APP_CONFIG = {
+    "page_title": "🎵 Complete Media Converter Suite",
+    "page_icon": "🎵",
+}
+
 def main():
     """Main application entry point"""
     

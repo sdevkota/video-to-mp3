@@ -95,7 +95,6 @@ if docker ps | grep -q "media-converter-suite"; then
     echo "   - 🎵 Audio Converter"
     echo "   - 🎬 Video Converter"
     echo "   - 🛠️ Media Tools"
-    echo "   - 🇳🇵 Advanced Nepali Unicode Converter"
     echo ""
 else
     echo "❌ Container failed to start. Checking logs..."
