@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# NMG Video to MP3 Converter - Docker Run Script
+# Complete Media Converter Suite - Docker Run Script
 # Built by Nepal Media Group
 
-echo "🐳 NMG Video to MP3 Converter - Docker Edition"
-echo "==============================================="
+echo "🐳 Complete Media Converter Suite - Docker Edition"
+echo "=================================================="
 echo ""
 
 # Check if Docker is installed
@@ -43,7 +43,7 @@ echo ""
 
 # Check if container is already running
 echo "🔍 Checking for existing container..."
-if docker ps | grep -q "nmg-video-converter"; then
+if docker ps | grep -q "media-converter-suite"; then
     echo "⚠️  Container is already running!"
     echo "🌐 Access the app at: http://localhost:8501"
     echo ""
@@ -52,6 +52,7 @@ if docker ps | grep -q "nmg-video-converter"; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "🛑 Stopping existing container..."
         $COMPOSE_CMD down
+        sleep 3
     else
         echo "✅ Keeping existing container running"
         echo "🌐 Visit: http://localhost:8501"
@@ -73,10 +74,10 @@ echo ""
 echo "🔍 Checking container status..."
 sleep 5
 
-if docker ps | grep -q "nmg-video-converter"; then
+if docker ps | grep -q "media-converter-suite"; then
     echo "✅ Container started successfully!"
     echo ""
-    echo "🎉 NMG Video to MP3 Converter is now running!"
+    echo "🎉 Complete Media Converter Suite is now running!"
     echo "🌐 Open your browser and visit: http://localhost:8501"
     echo "📁 Downloads will be saved to: ./downloads"
     echo ""
@@ -84,6 +85,17 @@ if docker ps | grep -q "nmg-video-converter"; then
     echo "   View logs:        $COMPOSE_CMD logs -f"
     echo "   Stop container:   $COMPOSE_CMD down"
     echo "   Restart:          $COMPOSE_CMD restart"
+    echo "   Check status:     docker ps | grep media-converter-suite"
+    echo ""
+    echo "💡 The app is running as a background service"
+    echo "   You can close this terminal and the app will continue running"
+    echo ""
+    echo "🚀 Available Tools:"
+    echo "   - 🎥 YouTube Converter"
+    echo "   - 🎵 Audio Converter"
+    echo "   - 🎬 Video Converter"
+    echo "   - 🛠️ Media Tools"
+    echo "   - 🇳🇵 Advanced Nepali Unicode Converter"
     echo ""
 else
     echo "❌ Container failed to start. Checking logs..."

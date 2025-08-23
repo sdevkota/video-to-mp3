@@ -4,21 +4,20 @@
 version: '3.8'
 
 services:
-  nmg-video-to-mp3:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: nmg-video-converter
+  media-converter-suite:
+    build: .
+    container_name: media-converter-suite
     ports:
       - "8501:8501"
-    environment:
-      - STREAMLIT_SERVER_HEADLESS=true
-      - STREAMLIT_SERVER_PORT=8501
-      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
-      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
     volumes:
-      # Optional: Mount a local directory for downloads
-      - ./downloads:/tmp/downloads
+      - ./downloads:/app/downloads
+      - ./uploads:/app/uploads
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+      - STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
@@ -26,12 +25,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    labels:
-      - "app.name=nmg-video-to-mp3"
-      - "app.description=Nepal Media Group Video to MP3 Converter"
-      - "app.url=http://localhost:8501"
+    networks:
+      - media-converter-network
 
-# Optional: Create a network for the app
 networks:
-  default:
-    name: nmg-converter-network
+  media-converter-network:
+    driver: bridge
+
+volumes:
+  downloads:
+    driver: local
+  uploads:
+    driver: local

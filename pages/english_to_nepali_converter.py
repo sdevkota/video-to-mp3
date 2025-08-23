@@ -1,10 +1,9 @@
 import streamlit as st
 import re
-from googletrans import Translator
 
 # Page configuration
 st.set_page_config(
-    page_title="Nepali Unicode Converter - Advanced IME",
+    page_title="Nepali Unicode Converter",
     page_icon="🇳🇵",
     layout="wide"
 )
@@ -84,17 +83,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize translator
-@st.cache_resource
-def get_translator():
-    return Translator()
-
-# Constants
+# Constants from React app
 ZWNJ = "\u200C"  # zero width non-joiner
 ZWJ = "\u200D"   # zero width joiner
 HALANT = "\u094D"  # ्
 
-# Vowel letters and signs
+# Vowel letters and signs - EXACT from React app
 VOWELS = {
     "a": "अ", "aa": "आ", "A": "आ",
     "i": "इ", "ee": "ई", "I": "ई",
@@ -113,7 +107,7 @@ MATRAS = {
     "rri": "ृ", "rree": "ॄ",
 }
 
-# Base consonants mapping (phonetic)
+# Base consonants mapping - EXACT from React app
 CONSONANTS = {
     # Velars
     "k": "क", "kh": "ख", "g": "ग", "gh": "घ", "x": "क्ष",
@@ -140,7 +134,7 @@ SPECIALS = {
     "ri^": "रि",
 }
 
-# Common-word overrides
+# Common-word overrides - EXACT from React app
 LEXICON = {
     # particles / auxiliaries
     "ke": "के", "ko": "को", "le": "ले", "laai": "लाई", "lai": "लाई",
@@ -159,7 +153,7 @@ LEXICON = {
     "hya": "हया",
 }
 
-# Order tokens longest-first for greedy matching
+# Order tokens longest-first - EXACT from React app
 def get_token_order(dictionary):
     return sorted(dictionary.keys(), key=len, reverse=True)
 
@@ -173,8 +167,8 @@ def is_alpha_num(ch):
 def encode_html(text):
     return ''.join([f'&#{ord(c)};' for c in text])
 
+# Core transliteration engine - EXACT from React app
 def transliterate(input_text):
-    """Core transliteration engine"""
     segments = []
     i = 0
     
@@ -195,7 +189,7 @@ def transliterate(input_text):
     return ''.join([seg['text'] if seg['type'] == 'raw' else translit_nep(seg['text']) for seg in segments])
 
 def translit_nep(s):
-    """Replace Latin-letter words by lexicon or phonetic rules"""
+    # Replace Latin-letter words by lexicon or phonetic rules while preserving punctuation/spacing
     def replace_word(match):
         word = match.group(0)
         key = word.lower()
@@ -205,13 +199,13 @@ def translit_nep(s):
     
     return re.sub(r'[A-Za-z]+', replace_word, s)
 
+# Phonetic engine over a single token - EXACT from React app
 def translit_syllables(s):
-    """Phonetic engine over a single token"""
     out = ""
     i = 0
     
     def push_consonant(base, vowel_key):
-        # Special case: users expect 'ya' → 'या'
+        # Special case: users expect 'ya' → 'या' (e.g., hya → हया)
         if base == 'य' and (not vowel_key or vowel_key == 'a'):
             out += base + 'ा'
             return
@@ -264,8 +258,8 @@ def translit_syllables(s):
         if matched:
             continue
         
-        # Lexical nasalization
-        if (s[i] in ['n', 'm'] and 
+        # Lexical nasalization: 'n' before velars/palatals → anusvara
+        if ((s[i] == 'n' or s[i] == 'm') and 
             i + 1 < len(s) and 
             re.match(r'[kgcjqtdpbshx]', s[i+1], re.IGNORECASE)):
             out += 'ं'
@@ -285,7 +279,7 @@ def translit_syllables(s):
                 push_consonant(base, v_key)
                 i += len(v_key)
             else:
-                # Check next for consonant to form conjunct
+                # No vowel — check next for consonant to form conjunct by default
                 next_c = peek_consonant_key(i)
                 if next_c:
                     out += base + HALANT  # form conjunct
@@ -306,215 +300,159 @@ def translit_syllables(s):
     
     return out
 
-def translate_text(text, source_lang='en', target_lang='ne'):
-    """Translate text using Google Translate"""
-    try:
-        translator = get_translator()
-        translation = translator.translate(text, src=source_lang, dest=target_lang)
-        return translation.text
-    except Exception as e:
-        return f"Translation error: {str(e)}"
-
 def main():
     st.markdown("""
     <div class='main-header'>
-        <h1>🇳🇵 Nepali Unicode Converter - Advanced IME</h1>
+        <h1>🇳🇵 Nepali Unicode Converter</h1>
         <p>Professional-grade transliteration with smart phonetic rules and lexicon overrides</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Create tabs
-    tab1, tab2, tab3 = st.tabs(["🔤 Unicode Converter", "🌐 Translation", "ℹ️ About & Tips"])
+    # Header with buttons
+    col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
     
-    with tab1:
-        st.header("Advanced Nepali Unicode Converter")
+    with col1:
+        st.markdown("### Advanced IME with Smart Rules")
+    
+    with col2:
+        if st.button("📋 Copy", key="copy_btn"):
+            st.session_state.copy_clicked = True
+    
+    with col3:
+        if st.button("📝 Select All", key="select_btn"):
+            st.session_state.select_clicked = True
+    
+    with col4:
+        if st.button("🗑️ Clear", key="clear_btn"):
+            st.session_state.clear_clicked = True
+            st.session_state.roman_input = ""
+            st.rerun()
+    
+    # Main converter area
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Type Romanized Nepali")
         
-        col1, col2 = st.columns(2)
+        # Initialize session state
+        if 'roman_input' not in st.session_state:
+            st.session_state.roman_input = ""
         
-        with col1:
-            st.subheader("Input (Romanized Nepali)")
-            roman_input = st.text_area(
-                "Type Romanized Nepali text:",
-                height=250,
-                placeholder="e.g., namaskar, Mero desh Nepal ho, pratishat/ko",
-                key="roman_input"
-            )
-            
-            # Character and word counts
-            in_chars = len(roman_input)
-            words = len(roman_input.strip().split()) if roman_input.strip() else 0
-            
-            st.caption(f"Characters: {in_chars} • Words: {words}")
+        roman_input = st.text_area(
+            "Input text:",
+            value=st.session_state.roman_input,
+            height=250,
+            placeholder="e.g., namaskar, Mero desh Nepal ho, pratishat/ko",
+            key="roman_input"
+        )
         
-        with col2:
-            st.subheader("Output")
-            
-            # Mode selection
-            mode = st.radio(
-                "Output Mode:",
-                ["unicode", "html", "smart"],
-                format_func=lambda x: {
-                    "unicode": "Readable Unicode",
-                    "html": "HTML Encoded",
-                    "smart": "Smart Converter"
-                }[x],
-                horizontal=True
-            )
-            
-            # Convert text
-            if roman_input:
-                unicode_output = transliterate(roman_input)
-                if mode == "html":
-                    final_output = encode_html(unicode_output)
-                else:
-                    final_output = unicode_output
-                
-                st.markdown(f"""
-                <div class='nepali-text'>{final_output}</div>
-                """, unsafe_allow_html=True)
-                
-                # Copy button
-                if st.button("📋 Copy to Clipboard", type="primary"):
-                    st.write("✅ Copied to clipboard!")
-                    st.code(final_output, language=None)
-                
-                st.caption(f"Output characters: {len(final_output)}")
+        # Update session state
+        st.session_state.roman_input = roman_input
+        
+        # Character and word counts
+        in_chars = len(roman_input)
+        words = len(roman_input.strip().split()) if roman_input.strip() else 0
+        
+        st.caption(f"Characters: {in_chars} • Words: {words}")
+    
+    with col2:
+        st.subheader("Output")
+        
+        # Mode selection
+        mode = st.radio(
+            "Output Mode:",
+            ["unicode", "html", "smart"],
+            format_func=lambda x: {
+                "unicode": "Readable Unicode",
+                "html": "HTML Encoded",
+                "smart": "Smart Converter"
+            }[x],
+            horizontal=True
+        )
+        
+        # Convert text
+        if roman_input:
+            unicode_output = transliterate(roman_input)
+            if mode == "html":
+                final_output = encode_html(unicode_output)
             else:
-                st.info("Type some text to see the conversion...")
-        
-        # Tips section
-        st.markdown("## 💡 Tips & Tricks")
-        
-        tips_col1, tips_col2 = st.columns(2)
-        
-        with tips_col1:
-            st.markdown("""
-            **Basic Usage:**
-            - Keep English as-is: wrap in `{curly braces}`
-            - Avoid conjuncts: use `/` between syllables
-            - End with halant: type `\\` after consonant
+                final_output = unicode_output
             
-            **Special Characters:**
-            - `*` = अनुस्वर (ं)
-            - `**` = चन्द्रबिन्दु (ँ)
-            - `om` = ॐ
-            - `rr` = र्‍ (reph-forming)
-            """)
-        
-        with tips_col2:
-            st.markdown("""
-            **Common Pairs:**
-            - `ta`=त, `Ta`=ट
-            - `tha`=थ, `Tha`=ठ
-            - `da`=द, `Da`=ड
-            - `na`=न, `Na`=ण
-            - `sha`=श, `Sh`=ष
+            # Display output
+            st.markdown(f"""
+            <div class='nepali-text'>{final_output}</div>
+            """, unsafe_allow_html=True)
             
-            **Compounds:**
-            - `ksha`=क्ष, `gya`=ज्ञ, `yna`=ञ
-            """)
-        
-        # Examples
-        st.markdown("## 📚 Examples")
-        
-        examples = [
-            {"en": "hya ke raichha", "ne": "हया के रैछ"},
-            {"en": "namaskar", "ne": "नमस्कार"},
-            {"en": "dhanyawaad", "ne": "धन्यवाद"},
-            {"en": "sagarmatha", "ne": "सगरमाथा"},
-            {"en": "Kathmandu", "ne": "काठमाडौं"},
-            {"en": "pratishat/ko", "ne": "प्रतिशतको"},
-            {"en": "Mero desh Nepal ho.", "ne": "मेरो देश नेपाल हो."},
-            {"en": "ksha gya yna", "ne": "क्ष ज्ञ ञ"},
-        ]
-        
-        example_cols = st.columns(4)
-        for i, example in enumerate(examples):
-            with example_cols[i % 4]:
-                if st.button(f"**{example['en']}**\n{example['ne']}", 
-                           key=f"ex_{i}", 
-                           help="Click to load example"):
-                    st.session_state.roman_input = example['en']
-                    st.rerun()
+            # Copy functionality
+            if st.session_state.get('copy_clicked', False):
+                st.write("✅ Copied to clipboard!")
+                st.code(final_output, language=None)
+                st.session_state.copy_clicked = False
+            
+            st.caption(f"Output chars: {len(final_output)}")
+        else:
+            st.info("Type some text to see the conversion...")
     
-    with tab2:
-        st.header("English to Nepali Translation")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("English Input")
-            english_text = st.text_area(
-                "Type your English text:",
-                height=200,
-                placeholder="Enter English text to translate to Nepali..."
-            )
-            
-            if st.button("Translate to Nepali", type="primary"):
-                if english_text.strip():
-                    with st.spinner("Translating..."):
-                        nepali_translation = translate_text(english_text)
-                        st.session_state['translation'] = nepali_translation
-                else:
-                    st.warning("Please enter some text to translate.")
-        
-        with col2:
-            st.subheader("Nepali Translation")
-            if 'translation' in st.session_state:
-                st.markdown(f"""
-                <div class='converter-box'>
-                    <div class='nepali-text'>{st.session_state['translation']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.code(st.session_state['translation'], language=None)
-            else:
-                st.info("Translation will appear here...")
+    # Tips section
+    st.markdown("## 💡 Tips & Tricks")
     
-    with tab3:
-        st.header("About This Advanced Converter")
-        
+    tips_col1, tips_col2 = st.columns(2)
+    
+    with tips_col1:
         st.markdown("""
-        <div class='feature-box'>
-            <h3>🌟 Advanced Features</h3>
-            <ul>
-                <li><strong>Smart Transliteration:</strong> Professional-grade IME with phonetic rules</li>
-                <li><strong>Lexicon Overrides:</strong> Fixes colloquial Latin spellings automatically</li>
-                <li><strong>Conjunct Control:</strong> Precise control over consonant combinations</li>
-                <li><strong>Multiple Output Modes:</strong> Unicode, HTML encoded, and smart conversion</li>
-                <li><strong>English Preservation:</strong> Keep English text unchanged with {braces}</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        **Basic Usage:**
+        - Keep English as-is: wrap in `{curly braces}`
+        - Avoid conjuncts: use `/` between syllables
+        - End with halant: type `\\` after consonant
         
+        **Special Characters:**
+        - `*` = अनुस्वर (ं)
+        - `**` = चन्द्रबिन्दु (ँ)
+        - `om` = ॐ
+        - `rr` = र्‍ (reph-forming)
+        """)
+    
+    with tips_col2:
         st.markdown("""
-        <div class='feature-box'>
-            <h3>🔧 Technical Details</h3>
-            <ul>
-                <li><strong>Zero-Width Characters:</strong> Uses ZWNJ (/) and ZWJ for precise control</li>
-                <li><strong>Greedy Matching:</strong> Longest-token-first algorithm for accuracy</li>
-                <li><strong>Context-Aware:</strong> Automatic anusvara insertion before velars/palatals</li>
-                <li><strong>Extensible:</strong> Easy to add new rules and lexicon entries</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        **Common Pairs:**
+        - `ta`=त, `Ta`=ट
+        - `tha`=थ, `Tha`=ठ
+        - `da`=द, `Da`=ड
+        - `na`=न, `Na`=ण
+        - `sha`=श, `Sh`=ष
         
-        st.markdown("""
-        <div class='feature-box'>
-            <h3>⚠️ Important Notes</h3>
-            <ul>
-                <li>This is a best-effort IME; real-world edge cases may exist</li>
-                <li>Extend rules in the code for full editor-grade behavior</li>
-                <li>Translation requires internet connection</li>
-                <li>For production use, consider extending the lexicon and rules</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        **Compounds:**
+        - `ksha`=क्ष, `gya`=ज्ञ, `yna`=ञ
+        """)
+    
+    # Examples
+    st.markdown("## 📚 Examples")
+    
+    examples = [
+        {"en": "hya ke raichha", "ne": "हया के रैछ"},
+        {"en": "namaskar", "ne": "नमस्कार"},
+        {"en": "dhanyawaad", "ne": "धन्यवाद"},
+        {"en": "sagarmatha", "ne": "सगरमाथा"},
+        {"en": "Kathmandu", "ne": "काठमाडौं"},
+        {"en": "pratishat/ko", "ne": "प्रतिशतको"},
+        {"en": "Mero desh Nepal ho.", "ne": "मेरो देश नेपाल हो."},
+        {"en": "ksha gya yna", "ne": "क्ष ज्ञ ञ"},
+    ]
+    
+    # Create example buttons in a grid
+    cols = st.columns(4)
+    for i, example in enumerate(examples):
+        with cols[i % 4]:
+            if st.button(f"**{example['en']}**\n{example['ne']}", 
+                       key=f"ex_{i}", 
+                       help="Click to load example"):
+                st.session_state.roman_input = example['en']
+                st.rerun()
     
     # Footer
     st.markdown("---")
     st.markdown(
-        "<p style='text-align: center; color: #666;'>Built with ❤️ for professional Nepali language processing</p>", 
+        "<p style='text-align: center; color: #666;'>Built for demonstration. Extend rules for full editor-grade IME behavior.</p>", 
         unsafe_allow_html=True
     )
 

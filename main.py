@@ -4,6 +4,7 @@ from pathlib import Path
 
 # Import our modules
 from utils.file_utils import check_ffmpeg
+from pages import youtube_converter, audio_converter, video_converter, media_tools, english_to_nepali_converter
 from config import APP_CONFIG
 
 def main():
@@ -14,7 +15,7 @@ def main():
         page_title=APP_CONFIG["page_title"],
         page_icon=APP_CONFIG["page_icon"],
         layout="wide",
-        initial_sidebar_state="collapsed"
+        initial_sidebar_state="expanded"
     )
     
     # Custom CSS
@@ -74,22 +75,60 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    # Main header
-    st.markdown("""
-    <div class="main-header">
-        <h1>🎵 Complete Media Converter Suite</h1>
-        <p>Convert videos, extract audio, and transform media files with ease</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
     # Check FFmpeg availability
     ffmpeg_available = check_ffmpeg()
     
-    # FFmpeg status banner
-    if ffmpeg_available:
-        st.success("✅ FFmpeg is available and ready for media conversion!")
-    else:
-        st.error("❌ FFmpeg is required but not found. Please install FFmpeg to use this application.")
+    # Sidebar navigation
+    with st.sidebar:
+        st.title("🎛️ Navigation")
+        
+        # FFmpeg status
+        if ffmpeg_available:
+            st.markdown('<p class="status-success">✅ FFmpeg Available</p>', unsafe_allow_html=True)
+        else:
+            st.markdown('<p class="status-error">❌ FFmpeg Not Found</p>', unsafe_allow_html=True)
+            st.error("FFmpeg is required for conversions. Please install FFmpeg to use this application.")
+        
+        st.markdown("---")
+        
+        # Navigation menu
+        pages = {
+            "🏠 Home": "home",
+            "🎥 YouTube Converter": "youtube",
+            "🎵 Audio Converter": "audio",
+            "🎬 Video Converter": "video", 
+            "🛠️ Media Tools": "tools",
+            "🇳🇵 Nepali Unicode": "nepali"
+        }
+        
+        selected_page = st.radio("Select Tool:", list(pages.keys()))
+        page_key = pages[selected_page]
+        
+        st.markdown("---")
+        
+        # App info
+        st.markdown("### 📋 Features")
+        st.markdown("""
+        - **YouTube to MP3** - Download & convert
+        - **Audio Converter** - Multiple formats
+        - **Video Converter** - High quality output
+        - **Media Tools** - Extract, compress, analyze
+        - **Nepali Unicode** - Advanced IME converter
+        """)
+        
+        st.markdown("### 🔧 Supported Formats")
+        st.markdown("""
+        **Audio:** MP3, WAV, FLAC, AAC, OGG
+        **Video:** MP4, AVI, MKV, WEBM, MOV
+        **Input:** Most common media formats
+        """)
+        
+        st.markdown("---")
+        st.markdown("*Built with Streamlit & FFmpeg*")
+    
+    # Main content area
+    if not ffmpeg_available:
+        st.error("🚫 FFmpeg is required but not found. Please install FFmpeg to use this application.")
         st.markdown("""
         ### How to install FFmpeg:
         
@@ -110,149 +149,170 @@ def main():
         """)
         return
     
-    # Welcome section
-    st.markdown("## 🚀 Welcome to Your Complete Media Conversion Solution!")
-    st.markdown("""
-    Transform your media files with our comprehensive suite of conversion tools. 
-    Whether you need to convert videos, extract audio, or translate text, we've got you covered!
-    """)
-    
-    # Features overview
-    st.markdown("## ✨ What You Can Do")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
+    # Route to selected page
+    if page_key == "home":
+        # Home page content
         st.markdown("""
-        <div class="tool-card">
-            <h3>🎥 YouTube Converter</h3>
-            <p>Download YouTube videos and convert them to various audio formats like MP3, WAV, FLAC, and more.</p>
-            <ul>
-                <li>High-quality audio extraction</li>
-                <li>Multiple output formats</li>
-                <li>Batch processing support</li>
-            </ul>
+        <div class="main-header">
+            <h1>🎵 Complete Media Converter Suite</h1>
+            <p>Convert videos, extract audio, and transform media files with ease</p>
         </div>
         """, unsafe_allow_html=True)
         
+        # Welcome section
+        st.markdown("## 🚀 Welcome to Your Complete Media Conversion Solution!")
         st.markdown("""
-        <div class="tool-card">
-            <h3>🎵 Audio Converter</h3>
-            <p>Convert between audio formats with advanced options for quality, sample rate, and effects.</p>
-            <ul>
-                <li>Support for MP3, WAV, FLAC, AAC, OGG</li>
-                <li>Audio normalization and effects</li>
-                <li>Batch conversion capabilities</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="tool-card">
-            <h3>🎬 Video Converter</h3>
-            <p>Convert videos between formats with control over quality, resolution, and codecs.</p>
-            <ul>
-                <li>Multiple video formats supported</li>
-                <li>Quality and resolution control</li>
-                <li>Two-pass encoding for best quality</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="tool-card">
-            <h3>🛠️ Media Tools</h3>
-            <p>Extract audio from videos, compress media files, and analyze media properties.</p>
-            <ul>
-                <li>Audio extraction from videos</li>
-                <li>Video compression</li>
-                <li>Media analysis and metadata</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="tool-card">
-            <h3>🇳🇵 English to Nepali</h3>
-            <p>Translate English text to Nepali and convert between different Nepali font formats.</p>
-            <ul>
-                <li>Google Translate integration</li>
-                <li>Font conversion tools</li>
-                <li>Unicode support</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="tool-card">
-            <h3>📊 Batch Processing</h3>
-            <p>Process multiple files at once to save time and effort.</p>
-            <ul>
-                <li>Multiple file uploads</li>
-                <li>Consistent settings</li>
-                <li>Progress tracking</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Supported formats
-    st.markdown("## 🔧 Supported Formats")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("### 🎵 Audio Formats")
-        st.markdown("""
-        **Input:** MP3, WAV, FLAC, AAC, OGG, M4A, WMA
-        **Output:** MP3, WAV, FLAC, AAC, OGG, M4A
+        Transform your media files with our comprehensive suite of conversion tools. 
+        Whether you need to convert videos, extract audio, or translate text, we've got you covered!
         """)
-    
-    with col2:
-        st.markdown("### 🎬 Video Formats")
+        
+        # Features overview
+        st.markdown("## ✨ What You Can Do")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            <div class="tool-card">
+                <h3>🎥 YouTube Converter</h3>
+                <p>Download YouTube videos and convert them to various audio formats like MP3, WAV, FLAC, and more.</p>
+                <ul>
+                    <li>High-quality audio extraction</li>
+                    <li>Multiple output formats</li>
+                    <li>Batch processing support</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="tool-card">
+                <h3>🎵 Audio Converter</h3>
+                <p>Convert between audio formats with advanced options for quality, sample rate, and effects.</p>
+                <ul>
+                    <li>Support for MP3, WAV, FLAC, AAC, OGG</li>
+                    <li>Audio normalization and effects</li>
+                    <li>Batch conversion capabilities</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="tool-card">
+                <h3>🎬 Video Converter</h3>
+                <p>Convert videos between formats with control over quality, resolution, and codecs.</p>
+                <ul>
+                    <li>Multiple video formats supported</li>
+                    <li>Quality and resolution control</li>
+                    <li>Two-pass encoding for best quality</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
+            <div class="tool-card">
+                <h3>🛠️ Media Tools</h3>
+                <p>Extract audio from videos, compress media files, and analyze media properties.</p>
+                <ul>
+                    <li>Audio extraction from videos</li>
+                    <li>Video compression</li>
+                    <li>Media analysis and metadata</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="tool-card">
+                <h3>🇳🇵 Nepali Unicode Converter</h3>
+                <p>Advanced IME with smart phonetic rules and lexicon overrides for professional Nepali text conversion.</p>
+                <ul>
+                    <li>Smart transliteration engine</li>
+                    <li>Context-aware anusvara insertion</li>
+                    <li>Zero-width character control</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="tool-card">
+                <h3>📊 Batch Processing</h3>
+                <p>Process multiple files at once to save time and effort.</p>
+                <ul>
+                    <li>Multiple file uploads</li>
+                    <li>Consistent settings</li>
+                    <li>Progress tracking</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Supported formats
+        st.markdown("## 🔧 Supported Formats")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("### 🎵 Audio Formats")
+            st.markdown("""
+            **Input:** MP3, WAV, FLAC, AAC, OGG, M4A, WMA
+            **Output:** MP3, WAV, FLAC, AAC, OGG, M4A
+            """)
+        
+        with col2:
+            st.markdown("### 🎬 Video Formats")
+            st.markdown("""
+            **Input:** MP4, AVI, MKV, WEBM, MOV, WMV, FLV
+            **Output:** MP4, AVI, MKV, WEBM, MOV
+            """)
+        
+        with col3:
+            st.markdown("### 📱 Other Sources")
+            st.markdown("""
+            **YouTube:** Direct video/audio download
+            **URLs:** Remote media files
+            **Batch:** Multiple files processing
+            """)
+        
+        # How to use
+        st.markdown("## 📖 How to Get Started")
+        
         st.markdown("""
-        **Input:** MP4, AVI, MKV, WEBM, MOV, WMV, FLV
-        **Output:** MP4, AVI, MKV, WEBM, MOV
+        1. **Install FFmpeg** (if not already installed)
+        2. **Run the application** using the run script
+        3. **Choose your tool** from the available options
+        4. **Upload or provide input** (file, URL, or text)
+        5. **Configure settings** for your desired output
+        6. **Convert and download** your processed files
         """)
-    
-    with col3:
-        st.markdown("### 📱 Other Sources")
+        
+        # Quick start button
+        st.markdown("## 🚀 Ready to Start Converting?")
         st.markdown("""
-        **YouTube:** Direct video/audio download
-        **URLs:** Remote media files
-        **Batch:** Multiple files processing
-        """)
+        <div style="text-align: center;">
+            <a href="https://github.com/your-repo" class="get-started-btn">
+                📚 View Documentation
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Footer
+        st.markdown("---")
+        st.markdown("""
+        <div style="text-align: center; color: #666;">
+            <p>Built with ❤️ using Streamlit & FFmpeg</p>
+            <p>Complete Media Converter Suite - Your all-in-one media solution</p>
+        </div>
+        """, unsafe_allow_html=True)
     
-    # How to use
-    st.markdown("## 📖 How to Get Started")
-    
-    st.markdown("""
-    1. **Install FFmpeg** (if not already installed)
-    2. **Run the application** using the run script
-    3. **Choose your tool** from the available options
-    4. **Upload or provide input** (file, URL, or text)
-    5. **Configure settings** for your desired output
-    6. **Convert and download** your processed files
-    """)
-    
-    # Quick start button
-    st.markdown("## 🚀 Ready to Start Converting?")
-    st.markdown("""
-    <div style="text-align: center;">
-        <a href="https://github.com/your-repo" class="get-started-btn">
-            📚 View Documentation
-        </a>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #666;">
-        <p>Built with ❤️ using Streamlit & FFmpeg</p>
-        <p>Complete Media Converter Suite - Your all-in-one media solution</p>
-    </div>
-    """, unsafe_allow_html=True)
+    elif page_key == "youtube":
+        youtube_converter.render_page()
+    elif page_key == "audio":
+        audio_converter.render_page()
+    elif page_key == "video":
+        video_converter.render_page()
+    elif page_key == "tools":
+        media_tools.render_page()
+    elif page_key == "nepali":
+        english_to_nepali_converter.main()
 
 if __name__ == "__main__":
     main()
