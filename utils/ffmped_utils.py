@@ -30,6 +30,56 @@ def run_ffmpeg_command(cmd: list, timeout: int = 300) -> Tuple[bool, str, str]:
     except Exception as e:
         return False, "", str(e)
 
+def detect_dat_format(input_path: str) -> Dict[str, Any]:
+    """
+    Attempt to detect DAT file format characteristics
+    
+    Args:
+        input_path: Path to DAT file
+    
+    Returns:
+        Dictionary with detected format parameters
+    """
+    try:
+        # Try common DAT format configurations
+        dat_configs = [
+            # Standard DAT (48kHz, 16-bit, stereo)
+            {"sample_rate": 48000, "sample_format": "s16le", "channels": 2},
+            # CD-quality equivalent
+            {"sample_rate": 44100, "sample_format": "s16le", "channels": 2},
+            # High-quality DAT
+            {"sample_rate": 48000, "sample_format": "s24le", "channels": 2},
+            # Mono variants
+            {"sample_rate": 48000, "sample_format": "s16le", "channels": 1},
+            {"sample_rate": 44100, "sample_format": "s16le", "channels": 1},
+        ]
+        
+        # Try to analyze with FFprobe first
+        for config in dat_configs:
+            cmd = [
+                "ffprobe", "-v", "quiet", "-print_format", "json",
+                "-f", "s16le",  # Try with s16le format
+                "-ar", str(config["sample_rate"]),
+                "-ac", str(config["channels"]),
+                "-show_format", "-show_streams", input_path
+            ]
+            
+            success, stdout, stderr = run_ffmpeg_command(cmd, timeout=30)
+            if success and stdout:
+                try:
+                    info = json.loads(stdout)
+                    if info.get('streams'):
+                        return config
+                except json.JSONDecodeError:
+                    continue
+        
+        # Default configuration if detection fails
+        return {"sample_rate": 48000, "sample_format": "s16le", "channels": 2}
+        
+    except Exception as e:
+        print(f"Error detecting DAT format: {e}")
+        return {"sample_rate": 48000, "sample_format": "s16le", "channels": 2}
+
 def convert_audio(
     input_path: str,
     output_path: str,
@@ -41,7 +91,8 @@ def convert_audio(
     end_time: Optional[float] = None,
     normalize: bool = False,
     fade_in: float = 0.0,
-    fade_out: float = 0.0
+    fade_out: float = 0.0,
+    input_format: Optional[str] = None
 ) -> bool:
     """
     Convert audio file using FFmpeg
@@ -58,13 +109,33 @@ def convert_audio(
         normalize: Whether to normalize audio
         fade_in: Fade in duration in seconds
         fade_out: Fade out duration in seconds
+        input_format: Input format hint (e.g., 'dat' for DAT files)
     
     Returns:
         True if conversion successful, False otherwise
     """
     try:
         # Base FFmpeg command
-        cmd = ["ffmpeg", "-i", input_path, "-y"]
+        cmd = ["ffmpeg"]
+        
+        # Handle DAT files with special input format specification
+        if input_format == "dat":
+            # Detect DAT format parameters
+            dat_config = detect_dat_format(input_path)
+            
+            # Add DAT-specific input options
+            cmd.extend([
+                "-f", dat_config["sample_format"],  # Raw audio format
+                "-ar", str(dat_config["sample_rate"]),  # Sample rate
+                "-ac", str(dat_config["channels"]),  # Channels
+                "-i", input_path,
+                "-y"
+            ])
+            
+            print(f"Processing DAT file with config: {dat_config}")
+        else:
+            # Standard input handling
+            cmd.extend(["-i", input_path, "-y"])
         
         # Add input options
         if start_time is not None:
@@ -115,11 +186,90 @@ def convert_audio(
         
         if not success:
             print(f"FFmpeg error: {stderr}")
+            # For DAT files, try alternative approach if first attempt fails
+            if input_format == "dat":
+                print("Retrying DAT conversion with alternative parameters...")
+                return convert_dat_alternative(input_path, output_path, output_format, quality, sample_rate, channels, normalize)
         
         return success
         
     except Exception as e:
         print(f"Error in convert_audio: {e}")
+        return False
+
+def convert_dat_alternative(
+    input_path: str,
+    output_path: str,
+    output_format: str,
+    quality: str = "192k",
+    sample_rate: int = 44100,
+    channels: int = 2,
+    normalize: bool = False
+) -> bool:
+    """
+    Alternative DAT conversion method using different parameters
+    
+    Args:
+        input_path: Input DAT file path
+        output_path: Output audio file path
+        output_format: Output format
+        quality: Audio quality/bitrate
+        sample_rate: Sample rate in Hz
+        channels: Number of audio channels
+        normalize: Whether to normalize audio
+    
+    Returns:
+        True if conversion successful, False otherwise
+    """
+    try:
+        # Try different DAT configurations
+        alternative_configs = [
+            # Try as raw PCM with different bit depths
+            {"format": "f32le", "sample_rate": 48000, "channels": 2},
+            {"format": "s24le", "sample_rate": 48000, "channels": 2},
+            {"format": "s32le", "sample_rate": 48000, "channels": 2},
+            # Try CD-quality parameters
+            {"format": "s16le", "sample_rate": 44100, "channels": 2},
+            # Try mono
+            {"format": "s16le", "sample_rate": 48000, "channels": 1},
+        ]
+        
+        for config in alternative_configs:
+            print(f"Trying DAT conversion with: {config}")
+            
+            cmd = [
+                "ffmpeg",
+                "-f", config["format"],
+                "-ar", str(config["sample_rate"]),
+                "-ac", str(config["channels"]),
+                "-i", input_path,
+                "-y"
+            ]
+            
+            # Add normalization if requested
+            if normalize:
+                cmd.extend(["-af", "loudnorm"])
+            
+            # Add output format options
+            if output_format == "mp3":
+                cmd.extend(["-acodec", "libmp3lame", "-ab", quality, "-ar", str(sample_rate), "-ac", str(channels)])
+            elif output_format == "wav":
+                cmd.extend(["-acodec", "pcm_s16le", "-ar", str(sample_rate), "-ac", str(channels)])
+            else:
+                cmd.extend(["-acodec", "libmp3lame", "-ab", quality])
+            
+            cmd.append(output_path)
+            
+            success, stdout, stderr = run_ffmpeg_command(cmd, timeout=120)
+            if success:
+                print(f"DAT conversion successful with config: {config}")
+                return True
+        
+        print("All DAT conversion attempts failed")
+        return False
+        
+    except Exception as e:
+        print(f"Error in convert_dat_alternative: {e}")
         return False
 
 def convert_video(
@@ -323,23 +473,32 @@ def compress_video(
         print(f"Error in compress_video: {e}")
         return False
 
-def analyze_media(input_path: str, analysis_type: str = "basic") -> Optional[Dict[str, Any]]:
+def analyze_media(input_path: str, analysis_type: str = "basic", input_format: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Analyze media file using FFprobe
     
     Args:
         input_path: Input media file path
         analysis_type: Type of analysis (basic, detailed, codec, stream)
+        input_format: Input format hint (e.g., 'dat' for DAT files)
     
     Returns:
         Dictionary containing analysis results or None if error
     """
     try:
         # Base FFprobe command
-        cmd = [
-            "ffprobe", "-v", "quiet", "-print_format", "json",
-            "-show_format", "-show_streams", input_path
-        ]
+        cmd = ["ffprobe", "-v", "quiet", "-print_format", "json"]
+        
+        # Handle DAT files with format specification
+        if input_format == "dat":
+            dat_config = detect_dat_format(input_path)
+            cmd.extend([
+                "-f", dat_config["sample_format"],
+                "-ar", str(dat_config["sample_rate"]),
+                "-ac", str(dat_config["channels"])
+            ])
+        
+        cmd.extend(["-show_format", "-show_streams", input_path])
         
         # Run analysis
         success, stdout, stderr = run_ffmpeg_command(cmd, timeout=60)
@@ -444,3 +603,38 @@ def process_stream_analysis(info: Dict[str, Any]) -> Dict[str, Any]:
         'format_info': info.get('format', {}),
         'total_streams': len(info.get('streams', []))
     }
+
+def validate_dat_file(input_path: str) -> bool:
+    """
+    Validate if a DAT file can be processed
+    
+    Args:
+        input_path: Path to DAT file
+    
+    Returns:
+        True if file appears to be a valid DAT file
+    """
+    try:
+        # Check file size (should be reasonable for audio)
+        file_size = os.path.getsize(input_path)
+        if file_size < 1024:  # Too small to be valid audio
+            return False
+        
+        # Try to detect format
+        dat_config = detect_dat_format(input_path)
+        
+        # Try a quick FFprobe test
+        cmd = [
+            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            "-f", dat_config["sample_format"],
+            "-ar", str(dat_config["sample_rate"]),
+            "-ac", str(dat_config["channels"]),
+            input_path
+        ]
+        
+        success, stdout, stderr = run_ffmpeg_command(cmd, timeout=30)
+        return success and "duration" in stdout.lower()
+        
+    except Exception as e:
+        print(f"Error validating DAT file: {e}")
+        return False

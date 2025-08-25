@@ -24,9 +24,12 @@ def render_page():
     batch_sample_rate = "44100"
     batch_normalize = True
     
+    # Updated supported formats to include DAT files
+    supported_input_formats = SUPPORTED_FORMATS["audio_input"] + ["dat"]
+    
     # Always show format information
     st.info("""
-    **Supported Input Formats:** MP3, WAV, FLAC, M4A, AAC, OGG, WMA, MP4, MOV, AVI, MKV, WEBM  
+    **Supported Input Formats:** MP3, WAV, FLAC, M4A, AAC, OGG, WMA, MP4, MOV, AVI, MKV, WEBM, **DAT**  
     **Supported Output Formats:** MP3, WAV, FLAC, AAC, OGG
     """)
     
@@ -36,8 +39,8 @@ def render_page():
         
         uploaded_file = st.file_uploader(
             "Choose an audio file",
-            type=SUPPORTED_FORMATS["audio_input"],
-            help="Supported formats: MP3, WAV, FLAC, M4A, AAC, OGG, WMA, and video files with audio"
+            type=supported_input_formats,
+            help="Supported formats: MP3, WAV, FLAC, M4A, AAC, OGG, WMA, DAT, and video files with audio"
         )
         
         # Always show conversion settings
@@ -125,6 +128,12 @@ def render_page():
                 "File size": f"{uploaded_file.size / (1024*1024):.2f} MB",
                 "File type": uploaded_file.type or "Unknown"
             }
+            
+            # Special handling for DAT files
+            if uploaded_file.name.lower().endswith('.dat'):
+                file_details["File type"] = "DAT (Digital Audio Tape)"
+                st.info("📼 DAT file detected. This format will be processed as raw audio data.")
+            
             st.json(file_details)
         
         # Submit button - always enabled, validation happens in processing
@@ -137,8 +146,15 @@ def render_page():
         else:
             try:
                 with st.spinner("🔄 Converting audio..."):
-                    # Create temporary file
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
+                    # Create temporary file with proper extension handling for DAT files
+                    file_extension = uploaded_file.name.split('.')[-1].lower()
+                    if file_extension == 'dat':
+                        # For DAT files, we'll let FFmpeg handle the format detection
+                        temp_suffix = ".dat"
+                    else:
+                        temp_suffix = f".{file_extension}"
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=temp_suffix) as tmp_file:
                         tmp_file.write(uploaded_file.getvalue())
                         input_path = tmp_file.name
                     
@@ -152,7 +168,7 @@ def render_page():
                     output_dir.mkdir(exist_ok=True)
                     output_path = output_dir / output_filename
                     
-                    # Convert audio
+                    # Convert audio with special handling for DAT files
                     success = convert_audio(
                         input_path=input_path,
                         output_path=str(output_path),
@@ -164,7 +180,8 @@ def render_page():
                         end_time=float(end_time) if end_time else None,
                         normalize=normalize,
                         fade_in=fade_in,
-                        fade_out=fade_out
+                        fade_out=fade_out,
+                        input_format="dat" if file_extension == "dat" else None
                     )
                     
                     # Clean up input file
@@ -203,9 +220,13 @@ def render_page():
                         
                     else:
                         st.error("❌ Audio conversion failed. Please check the file and try again.")
+                        if file_extension == "dat":
+                            st.warning("💡 DAT files may require specific handling. Ensure the file contains valid audio data.")
                         
             except Exception as e:
                 st.error(f"❌ Error during conversion: {str(e)}")
+                if uploaded_file.name.lower().endswith('.dat'):
+                    st.warning("💡 DAT file conversion failed. This might be due to an unsupported DAT format variant or corrupted data.")
                 st.exception(e)
     
     # Batch conversion section
@@ -217,9 +238,9 @@ def render_page():
         
         uploaded_files = st.file_uploader(
             "Choose multiple audio files",
-            type=SUPPORTED_FORMATS["audio_input"],
+            type=supported_input_formats,
             accept_multiple_files=True,
-            help="Select multiple files for batch conversion"
+            help="Select multiple files for batch conversion (including DAT files)"
         )
         
         if uploaded_files:
@@ -268,8 +289,12 @@ def render_page():
                 status_text.text(f"Converting {uploaded_file.name}...")
                 
                 try:
+                    # Handle file extension for DAT files
+                    file_extension = uploaded_file.name.split('.')[-1].lower()
+                    temp_suffix = f".{file_extension}"
+                    
                     # Create temporary file
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=temp_suffix) as tmp_file:
                         tmp_file.write(uploaded_file.getvalue())
                         input_path = tmp_file.name
                     
@@ -283,7 +308,7 @@ def render_page():
                     output_dir.mkdir(exist_ok=True)
                     output_path = output_dir / output_filename
                     
-                    # Convert audio
+                    # Convert audio with DAT support
                     success = convert_audio(
                         input_path=input_path,
                         output_path=str(output_path),
@@ -291,7 +316,8 @@ def render_page():
                         quality=QUALITY_PRESETS["audio"][batch_quality],
                         sample_rate=int(batch_sample_rate),
                         channels=2,
-                        normalize=batch_normalize
+                        normalize=batch_normalize,
+                        input_format="dat" if file_extension == "dat" else None
                     )
                     
                     # Clean up input file
@@ -344,7 +370,7 @@ def render_page():
             st.error(f"❌ Error during batch conversion: {str(e)}")
             st.exception(e)
     
-    # Format comparison
+    # Format comparison - Updated to include DAT
     with st.expander("📊 Format Comparison"):
         st.markdown("""
         | Format | Quality | File Size | Compatibility | Best For |
@@ -354,11 +380,14 @@ def render_page():
         | **FLAC** | Excellent | Medium | Good | High quality, archiving |
         | **AAC** | Very Good | Small | Good | Apple devices, streaming |
         | **OGG** | Very Good | Small | Limited | Open source, web |
+        | **DAT** | Excellent | Large | Limited | Digital Audio Tape, archival |
         
         **💡 Recommendation:** MP3 is best for most uses due to universal compatibility and good quality-to-size ratio.
+        
+        **📼 DAT Files:** Digital Audio Tape files are high-quality audio format primarily used for professional recording and archival purposes.
         """)
     
-    # Help section
+    # Help section - Updated with DAT information
     with st.expander("❓ How to use"):
         st.markdown("""
         ### Steps to convert audio files:
@@ -370,7 +399,7 @@ def render_page():
         5. **Click Convert** to start the process
         
         ### Supported input formats:
-        - **Audio:** MP3, WAV, FLAC, M4A, AAC, OGG, WMA
+        - **Audio:** MP3, WAV, FLAC, M4A, AAC, OGG, WMA, **DAT**
         - **Video with audio:** MP4, MOV, AVI, MKV, WEBM
         
         ### Quality presets:
@@ -383,4 +412,11 @@ def render_page():
         - Use batch conversion for multiple files
         - Normalize audio for consistent levels
         - Higher sample rates = better quality but larger files
-        """) 
+        - **DAT files:** Ensure the DAT file contains valid audio data. Some DAT files may require specific handling.
+        
+        ### About DAT Files:
+        - **DAT (Digital Audio Tape)** files are high-quality digital audio format
+        - Originally used in professional recording and digital audio tape systems
+        - May contain uncompressed digital audio data
+        - Conversion success depends on the specific DAT format variant
+        """)
